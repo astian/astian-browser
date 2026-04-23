@@ -21,6 +21,7 @@ export function registerBrowserIpc(mainWindow: BrowserWindow, tabs: TabsControll
   ipcMain.handle(IPC_CHANNELS.SET_CONTENT_VISIBLE, (_event, visible: boolean) =>
     tabs.setContentVisible(visible)
   )
+  // CONFIRM_EXTERNAL_SCHEME is registered in main/index.ts where dialog + shell are available
 
   tabs.onStateChanged((state) => {
     mainWindow.webContents.send(IPC_CHANNELS.STATE_CHANGED, state)

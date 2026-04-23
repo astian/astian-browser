@@ -11,7 +11,10 @@ describe('browser store', () => {
           tabLayout: 'horizontal',
           sidebarVisible: true,
           onboardingCompleted: false,
-          welcomeDismissed: false
+          welcomeDismissed: false,
+          theme: 'dark',
+          searchEngine: 'astiango',
+          adblockEnabled: true
         }
       }
     })

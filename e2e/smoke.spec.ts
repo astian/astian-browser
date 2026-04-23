@@ -1,4 +1,4 @@
-import { test, expect, _electron as electron, ElectronApplication, Page } from '@playwright/test'
+import { test, expect, _electron as electron, ElectronApplication } from '@playwright/test'
 import path from 'path'
 
 /**

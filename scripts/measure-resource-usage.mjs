@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
+
 import { access } from 'node:fs/promises'
 import { spawn } from 'node:child_process'
 import path from 'node:path'
@@ -35,7 +37,6 @@ const child = spawn(electronPath, [entryPoint], {
 })
 
 let stdout = ''
-let stderr = ''
 
 child.stdout.on('data', (chunk) => {
   const text = chunk.toString()
@@ -45,7 +46,6 @@ child.stdout.on('data', (chunk) => {
 
 child.stderr.on('data', (chunk) => {
   const text = chunk.toString()
-  stderr += text
   process.stderr.write(text)
 })
 
@@ -61,7 +61,9 @@ const startupMs = parseMetric(stdout, 'Cold start')
 const ramMb = parseMetric(stdout, 'RAM with 3 tabs')
 
 if (startupMs !== null) {
-  console.log(`Startup target ${STARTUP_TARGET_MS} ms: ${startupMs <= STARTUP_TARGET_MS ? 'PASS' : 'FAIL'}`)
+  console.log(
+    `Startup target ${STARTUP_TARGET_MS} ms: ${startupMs <= STARTUP_TARGET_MS ? 'PASS' : 'FAIL'}`
+  )
 }
 
 if (ramMb !== null) {

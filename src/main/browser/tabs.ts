@@ -43,7 +43,7 @@ export class TabsController {
       const restoredActiveId =
         this.activeTabId && persisted.tabs.some((tab) => tab.id === this.activeTabId)
           ? this.activeTabId
-          : persisted.tabs[0]?.id ?? null
+          : (persisted.tabs[0]?.id ?? null)
 
       for (const tab of persisted.tabs) {
         this.restoreTab(tab, tab.id === restoredActiveId)

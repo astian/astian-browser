@@ -9,6 +9,7 @@ jobs:
   release:
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
@@ -23,17 +24,29 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        id: checkout_primary
+        uses: actions/checkout@v5
+        continue-on-error: true
         with:
           fetch-depth: 0
 
+      - name: Retry checkout after transient GitHub failure
+        if: steps.checkout_primary.outcome == 'failure'
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Verify repository checkout
+        run: git rev-parse HEAD
+
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: ${{ matrix.node-version }}
+          cache: bun
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
+        uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 

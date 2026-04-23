@@ -459,13 +459,14 @@ function App(): React.JSX.Element {
   const [externalUrl, setExternalUrl] = useState<string | null>(null)
   const [toasts, setToasts] = useState<Toast[]>([])
   const urlRef = useRef<HTMLInputElement>(null)
+  const theme = state?.preferences.theme
 
-  const addToast = (toast: Omit<Toast, 'id'>) => {
+  const addToast = (toast: Omit<Toast, 'id'>): void => {
     const id = Math.random().toString(36).substr(2, 9)
     setToasts((prev) => [...prev, { ...toast, id, duration: toast.duration ?? 5000 }])
   }
 
-  const removeToast = (id: string) => {
+  const removeToast = (id: string): void => {
     setToasts((prev) => prev.filter((t) => t.id !== id))
   }
 
@@ -557,11 +558,11 @@ function App(): React.JSX.Element {
   }, [onKeyDown])
 
   useEffect(() => {
-    if (!state) return
+    if (!theme) return
     const root = document.documentElement
-    root.classList.toggle('dark', state.preferences.theme === 'dark')
-    root.classList.toggle('light', state.preferences.theme === 'light')
-  }, [state?.preferences.theme])
+    root.classList.toggle('dark', theme === 'dark')
+    root.classList.toggle('light', theme === 'light')
+  }, [theme])
 
   if (!state && !bootError) return <Splash />
   if (!state) return <ErrorScreen message={bootError ?? 'Error desconocido'} />

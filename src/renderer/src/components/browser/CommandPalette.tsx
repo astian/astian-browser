@@ -191,10 +191,6 @@ export function CommandPalette({ state, onClose, onOpenSettings }: Props): React
   )
 
   useEffect(() => {
-    setSelected(0)
-  }, [query])
-
-  useEffect(() => {
     inputRef.current?.focus()
   }, [])
 
@@ -237,7 +233,10 @@ export function CommandPalette({ state, onClose, onOpenSettings }: Props): React
             className="flex-1 bg-transparent text-sm text-neutral-100 placeholder-neutral-500 outline-none"
             placeholder="Buscar acciones o escribir URL…"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value)
+              setSelected(0)
+            }}
           />
           <kbd className="rounded border border-neutral-700 px-1.5 py-0.5 text-[10px] text-neutral-500">
             ESC

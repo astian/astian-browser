@@ -21,10 +21,6 @@ win:
   target:
     - nsis
     - portable
-  certificateFile: null
-  certificatePassword: null
-  signingHashAlgorithms:
-    - sha256
 
 nsis:
   oneClick: false
@@ -45,10 +41,6 @@ mac:
     - dmg
     - zip
   identity: null
-  identityProperties:
-    identityHashAlgorithms:
-      - sha256
-      - sha1
   entitlementsInherit: build/entitlements.mac.plist
   entitlements: build/entitlements.mac.plist
   extendInfo:

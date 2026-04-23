@@ -1,4 +1,13 @@
 export type TabLayout = 'horizontal' | 'sidebar'
+export type Theme = 'dark' | 'light'
+export type SearchEngine = 'astiango' | 'google' | 'duckduckgo' | 'bing'
+
+export const SEARCH_ENGINES: Record<SearchEngine, { name: string; url: string }> = {
+  astiango: { name: 'AstianGO', url: 'https://astiango.com/?q=' },
+  google: { name: 'Google', url: 'https://www.google.com/search?q=' },
+  duckduckgo: { name: 'DuckDuckGo', url: 'https://duckduckgo.com/?q=' },
+  bing: { name: 'Bing', url: 'https://www.bing.com/search?q=' }
+}
 
 export interface BrowserTab {
   id: string
@@ -15,12 +24,20 @@ export interface Preferences {
   sidebarVisible: boolean
   onboardingCompleted: boolean
   welcomeDismissed: boolean
+  theme: Theme
+  searchEngine: SearchEngine
+  adblockEnabled: boolean
 }
 
 export interface BrowserState {
   tabs: BrowserTab[]
   activeTabId: string | null
   preferences: Preferences
+}
+
+export interface ExternalSchemeRequest {
+  url: string
+  scheme: string
 }
 
 export interface BrowserApi {
@@ -35,7 +52,9 @@ export interface BrowserApi {
   reload: () => Promise<BrowserState>
   updatePreferences: (patch: Partial<Preferences>) => Promise<BrowserState>
   setContentVisible: (visible: boolean) => Promise<void>
+  confirmExternalScheme: (url: string) => Promise<boolean>
   onStateChanged: (listener: (state: BrowserState) => void) => () => void
+  onExternalScheme: (listener: (req: ExternalSchemeRequest) => void) => () => void
 }
 
 export const IPC_CHANNELS = {
@@ -50,5 +69,7 @@ export const IPC_CHANNELS = {
   RELOAD: 'browser:reload',
   UPDATE_PREFERENCES: 'browser:update-preferences',
   SET_CONTENT_VISIBLE: 'browser:set-content-visible',
-  STATE_CHANGED: 'browser:state-changed'
+  STATE_CHANGED: 'browser:state-changed',
+  CONFIRM_EXTERNAL_SCHEME: 'browser:confirm-external-scheme',
+  EXTERNAL_SCHEME_REQUEST: 'browser:external-scheme-request'
 } as const

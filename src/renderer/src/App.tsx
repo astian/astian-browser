@@ -120,6 +120,12 @@ function Onboarding({
   const [searchEngine, setSearchEngine] = useState<SearchEngine>('astiango')
   const [theme, setTheme] = useState<Theme>('dark')
 
+  useEffect(() => {
+    const root = document.documentElement
+    root.classList.toggle('dark', theme === 'dark')
+    root.classList.toggle('light', theme === 'light')
+  }, [theme])
+
   return (
     <div
       className={`flex h-screen w-screen flex-col items-center justify-center ${
@@ -459,6 +465,10 @@ function App(): React.JSX.Element {
   const [externalUrl, setExternalUrl] = useState<string | null>(null)
   const [toasts, setToasts] = useState<Toast[]>([])
   const urlRef = useRef<HTMLInputElement>(null)
+  const shellRef = useRef<HTMLDivElement>(null)
+  const topBarRef = useRef<HTMLDivElement>(null)
+  const tabStripRef = useRef<HTMLDivElement>(null)
+  const sidebarRef = useRef<HTMLElement>(null)
 
   const addToast = (toast: Omit<Toast, 'id'>) => {
     const id = Math.random().toString(36).substr(2, 9)
@@ -563,6 +573,53 @@ function App(): React.JSX.Element {
     root.classList.toggle('light', state.preferences.theme === 'light')
   }, [state?.preferences.theme])
 
+  const isSidebar = state?.preferences.tabLayout === 'sidebar'
+  const activeTab = state?.tabs.find((t) => t.id === state.activeTabId) ?? null
+  const pinnedTabs = state?.tabs.filter((t) => t.pinned) ?? []
+  const regularTabs = state?.tabs.filter((t) => !t.pinned) ?? []
+
+  useEffect(() => {
+    const reportContentBounds = (): void => {
+      const shell = shellRef.current
+      const topBar = topBarRef.current
+      if (!shell || !topBar) {
+        return
+      }
+
+      const shellRect = shell.getBoundingClientRect()
+      const topBarHeight = Math.round(topBar.getBoundingClientRect().height)
+      const tabStripHeight = isSidebar
+        ? 0
+        : Math.round(tabStripRef.current?.getBoundingClientRect().height ?? 0)
+      const sidebarWidth = isSidebar
+        ? Math.round(sidebarRef.current?.getBoundingClientRect().width ?? 0)
+        : 0
+
+      void window.browserApi.setContentBounds({
+        x: sidebarWidth,
+        y: topBarHeight + tabStripHeight,
+        width: Math.max(Math.round(shellRect.width) - sidebarWidth, 0),
+        height: Math.max(Math.round(shellRect.height) - topBarHeight - tabStripHeight, 0)
+      })
+    }
+
+    const frameId = window.requestAnimationFrame(reportContentBounds)
+    const onResize = () => reportContentBounds()
+    window.addEventListener('resize', onResize)
+
+    const observer = new ResizeObserver(() => reportContentBounds())
+    if (shellRef.current) observer.observe(shellRef.current)
+    if (topBarRef.current) observer.observe(topBarRef.current)
+    if (tabStripRef.current) observer.observe(tabStripRef.current)
+    if (sidebarRef.current) observer.observe(sidebarRef.current)
+
+    return () => {
+      window.cancelAnimationFrame(frameId)
+      window.removeEventListener('resize', onResize)
+      observer.disconnect()
+    }
+  }, [isSidebar, state?.tabs.length ?? 0])
+
   if (!state && !bootError) return <Splash />
   if (!state) return <ErrorScreen message={bootError ?? 'Error desconocido'} />
 
@@ -581,11 +638,6 @@ function App(): React.JSX.Element {
     )
   }
 
-  const isSidebar = state.preferences.tabLayout === 'sidebar'
-  const activeTab = state.tabs.find((t) => t.id === state.activeTabId) ?? null
-  const pinnedTabs = state.tabs.filter((t) => t.pinned)
-  const regularTabs = state.tabs.filter((t) => !t.pinned)
-
   const navigate = (e: React.FormEvent): void => {
     e.preventDefault()
     void window.browserApi.navigate(urlInput)
@@ -593,8 +645,12 @@ function App(): React.JSX.Element {
   }
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-neutral-950 text-neutral-100 select-none">
+    <div
+      ref={shellRef}
+      className="flex h-screen w-screen flex-col overflow-hidden bg-neutral-950 text-neutral-100 select-none"
+    >
       <div
+        ref={topBarRef}
         className="flex shrink-0 items-center gap-1 border-b border-neutral-800 bg-neutral-900 px-2"
         style={{ height: 48 }}
       >
@@ -657,6 +713,7 @@ function App(): React.JSX.Element {
 
       {!isSidebar && (
         <div
+          ref={tabStripRef}
           className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-neutral-800 bg-neutral-900 px-2 pb-1.5 pt-1"
           style={{ height: 40 }}
         >
@@ -668,7 +725,10 @@ function App(): React.JSX.Element {
 
       <div className="flex min-h-0 flex-1">
         {isSidebar && (
-          <aside className="flex w-56 shrink-0 flex-col gap-0.5 overflow-y-auto border-r border-neutral-800 bg-neutral-900 p-2">
+          <aside
+            ref={sidebarRef}
+            className="flex w-56 shrink-0 flex-col gap-0.5 overflow-y-auto border-r border-neutral-800 bg-neutral-900 p-2"
+          >
             {pinnedTabs.length > 0 && (
               <>
                 <p className="px-2 pb-0.5 pt-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-600">

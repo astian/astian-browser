@@ -14,6 +14,7 @@ const browserApi: BrowserApi = {
   reload: () => ipcRenderer.invoke(IPC_CHANNELS.RELOAD),
   updatePreferences: (patch) => ipcRenderer.invoke(IPC_CHANNELS.UPDATE_PREFERENCES, patch),
   setContentVisible: (visible) => ipcRenderer.invoke(IPC_CHANNELS.SET_CONTENT_VISIBLE, visible),
+  setContentBounds: (bounds) => ipcRenderer.invoke(IPC_CHANNELS.SET_CONTENT_BOUNDS, bounds),
   confirmExternalScheme: (url) => ipcRenderer.invoke(IPC_CHANNELS.CONFIRM_EXTERNAL_SCHEME, url),
   onStateChanged: (listener): (() => void) => {
     const subscription = (_event: unknown, state: Parameters<typeof listener>[0]): void =>

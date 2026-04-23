@@ -28,6 +28,15 @@ body,
   background: radial-gradient(circle at 80% 10%, #0f172a 0%, #020617 55%);
 }
 
+body {
+  display: block;
+  overflow: hidden;
+}
+
+#root {
+  display: block;
+}
+
 html.light,
 html.light body {
   background: radial-gradient(circle at 85% 10%, #e2e8f0 0%, #f8fafc 55%);
@@ -100,12 +109,10 @@ html.light .placeholder-neutral-500::placeholder {
 /* Theme-aware overlays for settings/palette/external prompts. */
 .theme-backdrop {
   background-color: rgb(0 0 0 / 0.6);
-  backdrop-filter: blur(6px);
 }
 
 html.light .theme-backdrop {
   background-color: rgb(148 163 184 / 0.28);
-  backdrop-filter: blur(4px);
 }
 
 button,

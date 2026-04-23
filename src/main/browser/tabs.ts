@@ -1,6 +1,6 @@
 import { BrowserWindow, Session, WebContentsView, session } from 'electron'
 import { join } from 'path'
-import type { BrowserState, BrowserTab, Preferences } from '../../shared/ipc'
+import type { BrowserState, BrowserTab, ContentBounds, Preferences } from '../../shared/ipc'
 import { SEARCH_ENGINES } from '../../shared/ipc'
 import { IPC_CHANNELS } from '../../shared/ipc'
 import { loadState, saveState } from '../app/state-store'
@@ -11,11 +11,10 @@ const NEW_TAB_URL =
 const SHARED_PRELOAD_PATH = join(__dirname, '../../preload/index.js')
 const SLEEP_TIMEOUT_MS = 10 * 60 * 1000
 const SLEEP_CHECK_INTERVAL_MS = 60 * 1000
-// Heights must match the React shell header in App.tsx
-// Horizontal: navBar(48) + tabStrip(40) = 88 -> pad to 92
-// Sidebar: navBar(48) only -> pad to 52
-const RESERVED_TOP_HEIGHT_HORIZONTAL = 92
-const RESERVED_TOP_HEIGHT_SIDEBAR = 52
+// Heights must match the React shell header in App.tsx.
+// Keep these exact to avoid visual gaps/overlaps when switching layouts.
+const RESERVED_TOP_HEIGHT_HORIZONTAL = 88
+const RESERVED_TOP_HEIGHT_SIDEBAR = 48
 const RESERVED_SIDEBAR_WIDTH = 224
 
 interface ManagedTab {
@@ -29,6 +28,7 @@ export class TabsController {
   private readonly profileSessions = new Map<string, Session>()
   private readonly sleepCheckInterval: NodeJS.Timeout
   private preferences: Preferences
+  private contentBounds: ContentBounds | null = null
   private activeTabId: string | null
   private listeners: Array<(state: BrowserState) => void> = []
 
@@ -56,9 +56,15 @@ export class TabsController {
       this.createTab(NEW_TAB_URL)
     }
 
+    this.syncWindowBackground()
+
     this.sleepCheckInterval = setInterval(() => this.sleepInactiveTabs(), SLEEP_CHECK_INTERVAL_MS)
 
-    this.window.on('resize', () => this.syncActiveViewBounds())
+    this.window.on('resize', () => {
+      if (!this.contentBounds) {
+        this.syncActiveViewBounds()
+      }
+    })
     this.window.on('closed', () => clearInterval(this.sleepCheckInterval))
   }
 
@@ -241,14 +247,48 @@ export class TabsController {
       const active = this.getActiveTab()
       active?.view?.setVisible(true)
     }
+    if (patch.theme) {
+      this.syncWindowBackground()
+    }
     this.syncActiveViewBounds()
     this.emit()
     return this.getState()
   }
 
+  private syncWindowBackground(): void {
+    const background = this.preferences.theme === 'light' ? '#f8fafc' : '#020617'
+    this.window.setBackgroundColor(background)
+  }
+
+  setContentBounds(bounds: ContentBounds): void {
+    this.contentBounds = {
+      x: Math.max(0, Math.round(bounds.x)),
+      y: Math.max(0, Math.round(bounds.y)),
+      width: Math.max(0, Math.round(bounds.width)),
+      height: Math.max(0, Math.round(bounds.height))
+    }
+    this.syncActiveViewBounds()
+  }
+
   setContentVisible(visible: boolean): void {
     const active = this.getActiveTab()
-    active?.view?.setVisible(visible)
+    if (!active) {
+      return
+    }
+
+    if (visible && !active.view) {
+      this.wakeTab(active)
+    }
+
+    if (!active.view) {
+      return
+    }
+
+    if (visible) {
+      this.syncActiveViewBounds()
+    }
+
+    active.view.setVisible(visible)
   }
 
   private getActiveTab(): ManagedTab | null {
@@ -402,19 +442,23 @@ export class TabsController {
       return
     }
 
-    const bounds = this.window.getContentBounds()
+    const fallbackBounds = this.window.getContentBounds()
     const usingSidebarLayout = this.preferences.tabLayout === 'sidebar'
     const leftInset = usingSidebarLayout ? RESERVED_SIDEBAR_WIDTH : 0
     const topInset = usingSidebarLayout
       ? RESERVED_TOP_HEIGHT_SIDEBAR
       : RESERVED_TOP_HEIGHT_HORIZONTAL
 
-    active.view.setBounds({
-      x: leftInset,
-      y: topInset,
-      width: Math.max(bounds.width - leftInset, 0),
-      height: Math.max(bounds.height - topInset, 0)
-    })
+    const resolved = this.contentBounds
+      ? this.contentBounds
+      : {
+          x: leftInset,
+          y: topInset,
+          width: Math.max(fallbackBounds.width - leftInset, 0),
+          height: Math.max(fallbackBounds.height - topInset, 0)
+        }
+
+    active.view.setBounds(resolved)
     active.view.setVisible(true)
   }
 

@@ -26,6 +26,7 @@ export function registerBrowserIpc(
   ipcMain.handle(IPC_CHANNELS.SET_CONTENT_VISIBLE, (_event, visible: boolean) =>
     tabs.setContentVisible(visible)
   )
+  ipcMain.handle(IPC_CHANNELS.SET_CONTENT_BOUNDS, (_event, bounds) => tabs.setContentBounds(bounds))
   // CONFIRM_EXTERNAL_SCHEME is registered in main/index.ts where dialog + shell are available
 
   // Updater handlers

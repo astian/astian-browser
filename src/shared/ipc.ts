@@ -43,6 +43,13 @@ export interface ExternalSchemeRequest {
   scheme: string
 }
 
+export interface ContentBounds {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
 export interface BrowserApi {
   getState: () => Promise<BrowserState>
   createTab: (url?: string, pinned?: boolean) => Promise<BrowserState>
@@ -55,6 +62,7 @@ export interface BrowserApi {
   reload: () => Promise<BrowserState>
   updatePreferences: (patch: Partial<Preferences>) => Promise<BrowserState>
   setContentVisible: (visible: boolean) => Promise<void>
+  setContentBounds: (bounds: ContentBounds) => Promise<void>
   confirmExternalScheme: (url: string) => Promise<boolean>
   onStateChanged: (listener: (state: BrowserState) => void) => () => void
   onExternalScheme: (listener: (req: ExternalSchemeRequest) => void) => () => void
@@ -72,6 +80,7 @@ export const IPC_CHANNELS = {
   RELOAD: 'browser:reload',
   UPDATE_PREFERENCES: 'browser:update-preferences',
   SET_CONTENT_VISIBLE: 'browser:set-content-visible',
+  SET_CONTENT_BOUNDS: 'browser:set-content-bounds',
   STATE_CHANGED: 'browser:state-changed',
   CONFIRM_EXTERNAL_SCHEME: 'browser:confirm-external-scheme',
   EXTERNAL_SCHEME_REQUEST: 'browser:external-scheme-request',

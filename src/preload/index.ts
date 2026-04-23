@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { BrowserApi } from '../shared/ipc'
+import type { BrowserApi, ExternalSchemeRequest } from '../shared/ipc'
 import { IPC_CHANNELS } from '../shared/ipc'
 
 const browserApi: BrowserApi = {
@@ -14,12 +14,20 @@ const browserApi: BrowserApi = {
   reload: () => ipcRenderer.invoke(IPC_CHANNELS.RELOAD),
   updatePreferences: (patch) => ipcRenderer.invoke(IPC_CHANNELS.UPDATE_PREFERENCES, patch),
   setContentVisible: (visible) => ipcRenderer.invoke(IPC_CHANNELS.SET_CONTENT_VISIBLE, visible),
+  confirmExternalScheme: (url) => ipcRenderer.invoke(IPC_CHANNELS.CONFIRM_EXTERNAL_SCHEME, url),
   onStateChanged: (listener): (() => void) => {
     const subscription = (_event: unknown, state: Parameters<typeof listener>[0]): void =>
       listener(state)
     ipcRenderer.on(IPC_CHANNELS.STATE_CHANGED, subscription)
     return () => {
       ipcRenderer.removeListener(IPC_CHANNELS.STATE_CHANGED, subscription)
+    }
+  },
+  onExternalScheme: (listener): (() => void) => {
+    const subscription = (_event: unknown, req: ExternalSchemeRequest): void => listener(req)
+    ipcRenderer.on(IPC_CHANNELS.EXTERNAL_SCHEME_REQUEST, subscription)
+    return () => {
+      ipcRenderer.removeListener(IPC_CHANNELS.EXTERNAL_SCHEME_REQUEST, subscription)
     }
   }
 }

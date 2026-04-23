@@ -1,5 +1,7 @@
 import { BrowserWindow, WebContentsView } from 'electron'
 import type { BrowserState, BrowserTab, Preferences } from '../../shared/ipc'
+import { SEARCH_ENGINES } from '../../shared/ipc'
+import { IPC_CHANNELS } from '../../shared/ipc'
 import { loadState, saveState } from '../app/state-store'
 
 const NEW_TAB_URL = 'https://astiango.com'
@@ -184,7 +186,17 @@ export class TabsController {
     const tab = this.getActiveTab()
     if (!tab) return this.getState()
 
-    tab.view.webContents.loadURL(normalizeUrl(url))
+    const normalized = this.normalizeUrl(url)
+    const scheme = extractScheme(normalized)
+    if (scheme && !isSafeInternalScheme(scheme)) {
+      this.window.webContents.send(IPC_CHANNELS.EXTERNAL_SCHEME_REQUEST, {
+        url: normalized,
+        scheme
+      })
+      return this.getState()
+    }
+
+    tab.view.webContents.loadURL(normalized)
     return this.getState()
   }
 
@@ -277,19 +289,33 @@ export class TabsController {
       listener(state)
     }
   }
+  private normalizeUrl(url: string): string {
+    const trimmed = url.trim()
+    if (!trimmed) return NEW_TAB_URL
+
+    const explicitScheme = extractScheme(trimmed)
+    if (explicitScheme) {
+      return trimmed
+    }
+
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed
+    }
+
+    if (trimmed.includes(' ') || !trimmed.includes('.')) {
+      const engine = SEARCH_ENGINES[this.preferences.searchEngine] ?? SEARCH_ENGINES.astiango
+      return `${engine.url}${encodeURIComponent(trimmed)}`
+    }
+
+    return `https://${trimmed}`
+  }
 }
 
-function normalizeUrl(url: string): string {
-  const trimmed = url.trim()
-  if (!trimmed) return NEW_TAB_URL
+function extractScheme(url: string): string | null {
+  const match = url.match(/^([a-zA-Z][a-zA-Z\d+.-]*):/)
+  return match?.[1]?.toLowerCase() ?? null
+}
 
-  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-    return trimmed
-  }
-
-  if (trimmed.includes(' ') || !trimmed.includes('.')) {
-    return `https://astiango.com/?q=${encodeURIComponent(trimmed)}`
-  }
-
-  return `https://${trimmed}`
+function isSafeInternalScheme(scheme: string): boolean {
+  return scheme === 'http' || scheme === 'https' || scheme === 'astian'
 }

@@ -28,8 +28,6 @@ export class UpdaterService {
     autoUpdater.allowDowngrade = false
     autoUpdater.allowPrerelease = false
 
-    autoUpdater.checkForUpdatesAndNotify()
-
     this.setupListeners()
   }
 
@@ -74,9 +72,20 @@ export class UpdaterService {
     })
 
     autoUpdater.on('error', (error) => {
+      // Silently log GitHub "no releases" errors to avoid console spam
+      if (
+        error &&
+        typeof error === 'object' &&
+        'code' in error &&
+        error.code === 'ERR_XML_MISSED_ELEMENT'
+      ) {
+        console.debug('[Updater] No published releases on GitHub yet')
+        return
+      }
+
       console.error('[Updater] Error:', error)
       this.sendToRenderer('updater:error', {
-        message: error.message
+        message: error instanceof Error ? error.message : String(error)
       })
     })
   }
@@ -92,12 +101,16 @@ export class UpdaterService {
 
     // Check immediately on app start (with 5 second delay)
     setTimeout(() => {
-      this.checkForUpdates()
+      this.checkForUpdates().catch((err) => {
+        console.debug('[Updater] Initial check failed:', err)
+      })
     }, 5000)
 
     // Then check every 4 hours
     this.updateCheckInterval = setInterval(() => {
-      this.checkForUpdates()
+      this.checkForUpdates().catch((err) => {
+        console.debug('[Updater] Periodic check failed:', err)
+      })
     }, this.checkIntervalMs)
   }
 

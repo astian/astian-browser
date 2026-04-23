@@ -1,25 +1,33 @@
-import { BrowserWindow, WebContentsView } from 'electron'
+import { BrowserWindow, Session, WebContentsView, session } from 'electron'
+import { join } from 'path'
 import type { BrowserState, BrowserTab, Preferences } from '../../shared/ipc'
 import { SEARCH_ENGINES } from '../../shared/ipc'
 import { IPC_CHANNELS } from '../../shared/ipc'
 import { loadState, saveState } from '../app/state-store'
 
-const NEW_TAB_URL = 'https://astiango.com'
+const DEFAULT_PROFILE_ID = 'default'
+const NEW_TAB_URL =
+  process.env['ASTIAN_RESOURCE_MEASURE'] === '1' ? 'astian://newtab' : 'https://astiango.com'
+const SHARED_PRELOAD_PATH = join(__dirname, '../../preload/index.js')
+const SLEEP_TIMEOUT_MS = 10 * 60 * 1000
+const SLEEP_CHECK_INTERVAL_MS = 60 * 1000
 // Heights must match the React shell header in App.tsx
-// Horizontal: navBar(48) + tabStrip(40) = 88 → pad to 92
-// Sidebar: navBar(48) only → pad to 52
+// Horizontal: navBar(48) + tabStrip(40) = 88 -> pad to 92
+// Sidebar: navBar(48) only -> pad to 52
 const RESERVED_TOP_HEIGHT_HORIZONTAL = 92
 const RESERVED_TOP_HEIGHT_SIDEBAR = 52
 const RESERVED_SIDEBAR_WIDTH = 224
 
 interface ManagedTab {
-  view: WebContentsView
+  view: WebContentsView | null
   state: BrowserTab
 }
 
 export class TabsController {
   private readonly window: BrowserWindow
   private readonly tabs = new Map<string, ManagedTab>()
+  private readonly profileSessions = new Map<string, Session>()
+  private readonly sleepCheckInterval: NodeJS.Timeout
   private preferences: Preferences
   private activeTabId: string | null
   private listeners: Array<(state: BrowserState) => void> = []
@@ -32,23 +40,26 @@ export class TabsController {
     this.activeTabId = persisted.activeTabId
 
     if (persisted.tabs.length > 0) {
+      const restoredActiveId =
+        this.activeTabId && persisted.tabs.some((tab) => tab.id === this.activeTabId)
+          ? this.activeTabId
+          : persisted.tabs[0]?.id ?? null
+
       for (const tab of persisted.tabs) {
-        this.createTab(tab.url, tab.pinned, tab.id, false)
+        this.restoreTab(tab, tab.id === restoredActiveId)
       }
 
-      if (this.activeTabId && this.tabs.has(this.activeTabId)) {
-        this.activateTab(this.activeTabId)
-      } else {
-        const firstTab = persisted.tabs[0]
-        if (firstTab) {
-          this.activateTab(firstTab.id)
-        }
+      if (restoredActiveId) {
+        this.activateTab(restoredActiveId)
       }
     } else {
       this.createTab(NEW_TAB_URL)
     }
 
+    this.sleepCheckInterval = setInterval(() => this.sleepInactiveTabs(), SLEEP_CHECK_INTERVAL_MS)
+
     this.window.on('resize', () => this.syncActiveViewBounds())
+    this.window.on('closed', () => clearInterval(this.sleepCheckInterval))
   }
 
   onStateChanged(listener: (state: BrowserState) => void): () => void {
@@ -67,57 +78,30 @@ export class TabsController {
     }
   }
 
-  createTab(url = NEW_TAB_URL, pinned = false, forcedId?: string, emit = true): BrowserState {
-    const tabId = forcedId ?? crypto.randomUUID()
-    const view = new WebContentsView({
-      webPreferences: {
-        contextIsolation: true,
-        sandbox: true,
-        nodeIntegration: false,
-        devTools: true
-      }
-    })
-
+  createTab(
+    url = NEW_TAB_URL,
+    pinned = false,
+    forcedId?: string,
+    emit = true,
+    profileId = DEFAULT_PROFILE_ID
+  ): BrowserState {
     const state: BrowserTab = {
-      id: tabId,
+      id: forcedId ?? crypto.randomUUID(),
+      profileId,
       url,
       title: 'New Tab',
       pinned,
       loading: true,
+      sleeping: false,
+      lastActiveAt: Date.now(),
       canGoBack: false,
       canGoForward: false
     }
 
-    const managed: ManagedTab = { view, state }
-    this.tabs.set(tabId, managed)
-
-    view.webContents.on('did-start-loading', () => {
-      managed.state.loading = true
-      this.emit()
-    })
-
-    view.webContents.on('did-stop-loading', () => {
-      managed.state.loading = false
-      managed.state.canGoBack = view.webContents.navigationHistory.canGoBack()
-      managed.state.canGoForward = view.webContents.navigationHistory.canGoForward()
-      this.emit()
-    })
-
-    view.webContents.on('page-title-updated', (_event, title) => {
-      managed.state.title = title
-      this.emit()
-    })
-
-    view.webContents.on('did-navigate', (_event, navigatedUrl) => {
-      managed.state.url = navigatedUrl
-      managed.state.canGoBack = view.webContents.navigationHistory.canGoBack()
-      managed.state.canGoForward = view.webContents.navigationHistory.canGoForward()
-      this.emit()
-    })
-
-    this.window.contentView.addChildView(view)
-    view.webContents.loadURL(url)
-    this.activateTab(tabId)
+    const managed: ManagedTab = { view: null, state }
+    this.tabs.set(state.id, managed)
+    this.wakeTab(managed)
+    this.activateTab(state.id)
 
     if (emit) {
       this.emit()
@@ -130,8 +114,7 @@ export class TabsController {
     const tab = this.tabs.get(tabId)
     if (!tab) return this.getState()
 
-    this.window.contentView.removeChildView(tab.view)
-    tab.view.webContents.close({ waitForBeforeUnload: false })
+    this.detachView(tab)
     this.tabs.delete(tabId)
 
     if (this.activeTabId === tabId) {
@@ -151,15 +134,26 @@ export class TabsController {
   }
 
   activateTab(tabId: string): BrowserState {
-    if (!this.tabs.has(tabId)) {
+    const target = this.tabs.get(tabId)
+    if (!target) {
       return this.getState()
     }
 
     this.activeTabId = tabId
+    target.state.lastActiveAt = Date.now()
+
+    if (target.state.sleeping || !target.view) {
+      this.wakeTab(target)
+    }
+
     const onboarded = this.preferences.onboardingCompleted
 
     for (const [id, managed] of this.tabs.entries()) {
       const isActive = id === tabId
+      if (!managed.view) {
+        continue
+      }
+
       // Hide ALL views when onboarding is not done so the React
       // modal receives clicks (native views always sit on top of webContents).
       managed.view.setVisible(isActive && onboarded)
@@ -196,13 +190,18 @@ export class TabsController {
       return this.getState()
     }
 
-    tab.view.webContents.loadURL(normalized)
+    if (!tab.view) {
+      this.wakeTab(tab, normalized)
+    } else {
+      tab.view.webContents.loadURL(normalized)
+    }
+
     return this.getState()
   }
 
   goBack(): BrowserState {
     const tab = this.getActiveTab()
-    if (!tab) return this.getState()
+    if (!tab?.view) return this.getState()
 
     if (tab.view.webContents.navigationHistory.canGoBack()) {
       tab.view.webContents.navigationHistory.goBack()
@@ -213,7 +212,7 @@ export class TabsController {
 
   goForward(): BrowserState {
     const tab = this.getActiveTab()
-    if (!tab) return this.getState()
+    if (!tab?.view) return this.getState()
 
     if (tab.view.webContents.navigationHistory.canGoForward()) {
       tab.view.webContents.navigationHistory.goForward()
@@ -226,6 +225,11 @@ export class TabsController {
     const tab = this.getActiveTab()
     if (!tab) return this.getState()
 
+    if (!tab.view) {
+      this.wakeTab(tab)
+      return this.getState()
+    }
+
     tab.view.webContents.reload()
     return this.getState()
   }
@@ -235,9 +239,7 @@ export class TabsController {
     // If onboarding just completed, make the active view visible.
     if (patch.onboardingCompleted === true) {
       const active = this.getActiveTab()
-      if (active) {
-        active.view.setVisible(true)
-      }
+      active?.view?.setVisible(true)
     }
     this.syncActiveViewBounds()
     this.emit()
@@ -246,9 +248,7 @@ export class TabsController {
 
   setContentVisible(visible: boolean): void {
     const active = this.getActiveTab()
-    if (active) {
-      active.view.setVisible(visible)
-    }
+    active?.view?.setVisible(visible)
   }
 
   private getActiveTab(): ManagedTab | null {
@@ -256,9 +256,145 @@ export class TabsController {
     return this.tabs.get(this.activeTabId) ?? null
   }
 
+  private restoreTab(tab: BrowserTab, wake: boolean): void {
+    const managed: ManagedTab = {
+      view: null,
+      state: {
+        ...tab,
+        profileId: tab.profileId || DEFAULT_PROFILE_ID,
+        sleeping: wake ? false : true,
+        loading: wake ? true : false,
+        lastActiveAt: tab.lastActiveAt ?? Date.now()
+      }
+    }
+
+    this.tabs.set(tab.id, managed)
+
+    if (wake) {
+      this.wakeTab(managed)
+    }
+  }
+
+  private wakeTab(managed: ManagedTab, targetUrl = managed.state.url): void {
+    const view = this.createView(managed)
+
+    managed.state.sleeping = false
+    managed.state.loading = true
+    managed.state.lastActiveAt = Date.now()
+    managed.state.canGoBack = false
+    managed.state.canGoForward = false
+
+    view.webContents.loadURL(targetUrl)
+  }
+
+  private createView(managed: ManagedTab): WebContentsView {
+    this.detachView(managed)
+
+    const view = new WebContentsView({
+      webPreferences: {
+        contextIsolation: true,
+        sandbox: true,
+        nodeIntegration: false,
+        devTools: true,
+        preload: SHARED_PRELOAD_PATH,
+        session: this.getProfileSession(managed.state.profileId)
+      }
+    })
+
+    this.attachViewListeners(managed, view)
+    this.window.contentView.addChildView(view)
+    managed.view = view
+
+    return view
+  }
+
+  private attachViewListeners(managed: ManagedTab, view: WebContentsView): void {
+    view.webContents.on('did-start-loading', () => {
+      managed.state.loading = true
+      managed.state.sleeping = false
+      this.emit()
+    })
+
+    view.webContents.on('did-stop-loading', () => {
+      if (managed.view !== view) {
+        return
+      }
+
+      managed.state.loading = false
+      managed.state.canGoBack = view.webContents.navigationHistory.canGoBack()
+      managed.state.canGoForward = view.webContents.navigationHistory.canGoForward()
+      this.emit()
+    })
+
+    view.webContents.on('page-title-updated', (_event, title) => {
+      managed.state.title = title
+      this.emit()
+    })
+
+    view.webContents.on('did-navigate', (_event, navigatedUrl) => {
+      managed.state.url = navigatedUrl
+      managed.state.canGoBack = view.webContents.navigationHistory.canGoBack()
+      managed.state.canGoForward = view.webContents.navigationHistory.canGoForward()
+      this.emit()
+    })
+
+    view.webContents.on('did-fail-load', () => {
+      managed.state.loading = false
+      this.emit()
+    })
+  }
+
+  private detachView(managed: ManagedTab): void {
+    if (!managed.view) {
+      return
+    }
+
+    this.window.contentView.removeChildView(managed.view)
+    managed.view.webContents.close({ waitForBeforeUnload: false })
+    managed.view = null
+  }
+
+  private getProfileSession(profileId: string): Session {
+    const resolvedProfileId = profileId || DEFAULT_PROFILE_ID
+    const existing = this.profileSessions.get(resolvedProfileId)
+    if (existing) {
+      return existing
+    }
+
+    const profileSession = session.fromPartition(`persist:astian-profile:${resolvedProfileId}`)
+    this.profileSessions.set(resolvedProfileId, profileSession)
+    return profileSession
+  }
+
+  private sleepInactiveTabs(): void {
+    const now = Date.now()
+    let changed = false
+
+    for (const [tabId, managed] of this.tabs.entries()) {
+      if (tabId === this.activeTabId || managed.state.sleeping) {
+        continue
+      }
+
+      if (now - managed.state.lastActiveAt < SLEEP_TIMEOUT_MS) {
+        continue
+      }
+
+      this.detachView(managed)
+      managed.state.sleeping = true
+      managed.state.loading = false
+      managed.state.canGoBack = false
+      managed.state.canGoForward = false
+      changed = true
+    }
+
+    if (changed) {
+      this.emit()
+    }
+  }
+
   private syncActiveViewBounds(): void {
     const active = this.getActiveTab()
-    if (!active) return
+    if (!active?.view) return
 
     // Don't position/show view during onboarding.
     if (!this.preferences.onboardingCompleted) {
@@ -289,6 +425,7 @@ export class TabsController {
       listener(state)
     }
   }
+
   private normalizeUrl(url: string): string {
     const trimmed = url.trim()
     if (!trimmed) return NEW_TAB_URL

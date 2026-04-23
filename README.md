@@ -39,6 +39,7 @@ bun run lint
 bun run typecheck
 bun run test
 bun run build
+bun run measure:resources
 bun run db:generate
 bun run repair:electron
 ```

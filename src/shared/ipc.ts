@@ -11,10 +11,13 @@ export const SEARCH_ENGINES: Record<SearchEngine, { name: string; url: string }>
 
 export interface BrowserTab {
   id: string
+  profileId: string
   url: string
   title: string
   pinned: boolean
   loading: boolean
+  sleeping: boolean
+  lastActiveAt: number
   canGoBack: boolean
   canGoForward: boolean
 }

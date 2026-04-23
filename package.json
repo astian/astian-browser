@@ -16,6 +16,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
+    "measure:resources": "bun run build && node scripts/measure-resource-usage.mjs",
     "start": "electron-vite preview",
     "dev": "electron-vite dev",
     "build": "bun run typecheck && electron-vite build",

@@ -1,5 +1,8 @@
 import { app, shell, BrowserWindow, protocol, ipcMain, dialog } from 'electron'
+import { performance } from 'node:perf_hooks'
 import { join } from 'path'
+import { mkdtempSync } from 'fs'
+import { tmpdir } from 'os'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { TabsController } from './browser/tabs'
@@ -7,6 +10,18 @@ import { registerBrowserIpc } from './ipc/register-ipc'
 import { initDatabase } from './db/client'
 import { IPC_CHANNELS } from '../shared/ipc'
 import { initUpdater, updaterService } from './services/updater'
+
+const RESOURCE_MEASUREMENT_ENABLED = process.env['ASTIAN_RESOURCE_MEASURE'] === '1'
+const RESOURCE_MEASUREMENT_TAB_COUNT = 3
+const RESOURCE_MEASUREMENT_DELAY_MS = 1500
+const startupMeasurementStartedAt = performance.now()
+
+if (RESOURCE_MEASUREMENT_ENABLED) {
+  app.setPath('userData', mkdtempSync(join(tmpdir(), 'astian-browser-measure-')))
+}
+
+app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion')
+app.commandLine.appendSwitch('enable-features', 'MemorySaver')
 
 // Register astian:// as a standard scheme before app ready
 protocol.registerSchemesAsPrivileged([
@@ -90,10 +105,6 @@ function createWindow(): void {
 
   mainWindow.setMenuBarVisibility(false)
 
-  mainWindow.on('ready-to-show', () => {
-    mainWindow.show()
-  })
-
   mainWindow.webContents.setWindowOpenHandler((details) => {
     if (isExternalScheme(details.url)) {
       // Notify renderer to show security prompt; block the window open
@@ -113,6 +124,40 @@ function createWindow(): void {
     updaterService.setMainWindow(mainWindow)
   }
   registerBrowserIpc(mainWindow, tabs, updaterService || undefined)
+
+  mainWindow.on('ready-to-show', () => {
+    mainWindow.show()
+
+    if (!RESOURCE_MEASUREMENT_ENABLED) {
+      return
+    }
+
+    for (let index = 1; index < RESOURCE_MEASUREMENT_TAB_COUNT; index += 1) {
+      tabs.createTab('astian://newtab', false, undefined, false)
+    }
+
+    setTimeout(() => {
+      const metrics = app.getAppMetrics()
+      const totalWorkingSetKb = metrics.reduce(
+        (sum, metric) => sum + (metric.memory?.workingSetSize ?? 0),
+        0
+      )
+      const startupMs = performance.now() - startupMeasurementStartedAt
+
+      console.log(`Cold start: ${startupMs.toFixed(0)} ms`)
+      console.log(`RAM with 3 tabs: ${(totalWorkingSetKb / 1024).toFixed(1)} MB`)
+      console.log('Process breakdown:')
+      for (const metric of metrics) {
+        const workingSetMb = ((metric.memory?.workingSetSize ?? 0) / 1024).toFixed(1)
+        const privateMb = ((metric.memory?.privateBytes ?? 0) / 1024).toFixed(1)
+        console.log(
+          `- ${metric.type} pid=${metric.pid} workingSet=${workingSetMb} MB private=${privateMb} MB`
+        )
+      }
+
+      app.quit()
+    }, RESOURCE_MEASUREMENT_DELAY_MS)
+  })
 
   // IPC: renderer asks user to confirm opening an external scheme
   ipcMain.handle(IPC_CHANNELS.CONFIRM_EXTERNAL_SCHEME, async (_event, url: string) => {

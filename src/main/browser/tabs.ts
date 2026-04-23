@@ -232,6 +232,13 @@ export class TabsController {
     return this.getState()
   }
 
+  setContentVisible(visible: boolean): void {
+    const active = this.getActiveTab()
+    if (active) {
+      active.view.setVisible(visible)
+    }
+  }
+
   private getActiveTab(): ManagedTab | null {
     if (!this.activeTabId) return null
     return this.tabs.get(this.activeTabId) ?? null

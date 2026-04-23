@@ -34,6 +34,7 @@ export interface BrowserApi {
   goForward: () => Promise<BrowserState>
   reload: () => Promise<BrowserState>
   updatePreferences: (patch: Partial<Preferences>) => Promise<BrowserState>
+  setContentVisible: (visible: boolean) => Promise<void>
   onStateChanged: (listener: (state: BrowserState) => void) => () => void
 }
 
@@ -48,5 +49,6 @@ export const IPC_CHANNELS = {
   GO_FORWARD: 'browser:go-forward',
   RELOAD: 'browser:reload',
   UPDATE_PREFERENCES: 'browser:update-preferences',
+  SET_CONTENT_VISIBLE: 'browser:set-content-visible',
   STATE_CHANGED: 'browser:state-changed'
 } as const

@@ -1,7 +1,9 @@
 import { useState } from 'react'
 
 function Versions(): React.JSX.Element {
-  const [versions] = useState(window.navigator.userAgent ? { node: 'n/a', chrome: 'n/a', electron: 'n/a' } : {})
+  const [versions] = useState(
+    window.navigator.userAgent ? { node: 'n/a', chrome: 'n/a', electron: 'n/a' } : {}
+  )
 
   return (
     <ul className="versions">

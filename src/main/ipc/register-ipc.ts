@@ -18,6 +18,9 @@ export function registerBrowserIpc(mainWindow: BrowserWindow, tabs: TabsControll
   ipcMain.handle(IPC_CHANNELS.GO_FORWARD, () => tabs.goForward())
   ipcMain.handle(IPC_CHANNELS.RELOAD, () => tabs.reload())
   ipcMain.handle(IPC_CHANNELS.UPDATE_PREFERENCES, (_event, patch) => tabs.updatePreferences(patch))
+  ipcMain.handle(IPC_CHANNELS.SET_CONTENT_VISIBLE, (_event, visible: boolean) =>
+    tabs.setContentVisible(visible)
+  )
 
   tabs.onStateChanged((state) => {
     mainWindow.webContents.send(IPC_CHANNELS.STATE_CHANGED, state)

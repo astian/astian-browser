@@ -212,10 +212,10 @@ function SettingsPanel({
       onClick={onClose}
     >
       <div
-        className="w-96 rounded-2xl border border-neutral-700 bg-neutral-900 p-6 shadow-2xl"
+        className="max-h-96 w-96 overflow-y-auto rounded-2xl border border-neutral-700 bg-neutral-900 p-5 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between">
+        <div className="mb-4 flex items-center justify-between">
           <h2 className="font-semibold text-neutral-100">Preferencias</h2>
           <button
             className="rounded-md p-1 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100"
@@ -225,17 +225,17 @@ function SettingsPanel({
           </button>
         </div>
 
-        <div className="mt-5 space-y-5 text-sm">
+        <div className="space-y-4 text-sm">
           {/* Layout */}
           <div>
-            <p className="mb-2 text-xs font-medium uppercase tracking-wider text-neutral-500">
+            <p className="mb-2.5 text-xs font-medium uppercase tracking-wider text-neutral-500">
               Disposición de pestañas
             </p>
             <div className="flex gap-2">
               {(['horizontal', 'sidebar'] as TabLayout[]).map((l) => (
                 <button
                   key={l}
-                  className={`rounded-lg border px-3 py-1.5 text-xs capitalize transition-colors ${
+                  className={`flex-1 rounded-lg border px-3 py-2 text-xs capitalize transition-colors ${
                     state.preferences.tabLayout === l
                       ? 'border-blue-500 bg-blue-600/20 text-blue-200'
                       : 'border-neutral-700 bg-neutral-800 text-neutral-300 hover:border-neutral-600'
@@ -253,11 +253,11 @@ function SettingsPanel({
 
           {/* Pin active tab */}
           <div>
-            <p className="mb-2 text-xs font-medium uppercase tracking-wider text-neutral-500">
+            <p className="mb-2.5 text-xs font-medium uppercase tracking-wider text-neutral-500">
               Pestaña activa
             </p>
             <button
-              className="rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-xs text-neutral-300 hover:border-neutral-600 transition-colors"
+              className="w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-xs text-neutral-300 transition-colors hover:border-neutral-600 hover:bg-neutral-700"
               onClick={() => {
                 if (state.activeTabId) {
                   const tab = state.tabs.find((t) => t.id === state.activeTabId)
@@ -274,11 +274,11 @@ function SettingsPanel({
 
           {/* Onboarding reset */}
           <div>
-            <p className="mb-2 text-xs font-medium uppercase tracking-wider text-neutral-500">
+            <p className="mb-2.5 text-xs font-medium uppercase tracking-wider text-neutral-500">
               Onboarding
             </p>
             <button
-              className="rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-xs text-neutral-300 hover:border-neutral-600 transition-colors"
+              className="w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-xs text-neutral-300 transition-colors hover:border-neutral-600 hover:bg-neutral-700"
               onClick={() => {
                 void window.browserApi.updatePreferences({
                   onboardingCompleted: false,
@@ -331,6 +331,11 @@ function App(): React.JSX.Element {
 
     return () => off?.()
   }, [setState])
+
+  // Hide web content when settings modal is open
+  useEffect(() => {
+    void window.browserApi.setContentVisible(!showSettings)
+  }, [showSettings])
 
   // ── loading / error ──────────────────────────────────────────────────
   if (!state && !bootError) return <Splash />

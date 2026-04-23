@@ -548,9 +548,6 @@ function App(): React.JSX.Element {
           </div>
         </form>
 
-        <NavBtn onClick={() => setShowPalette((v) => !v)} title="Command Palette" active={showPalette}>
-          <Search size={15} />
-        </NavBtn>
         <NavBtn onClick={() => void window.browserApi.createTab()} title="Nueva pestaña">
           <Plus size={15} />
         </NavBtn>

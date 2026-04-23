@@ -38,10 +38,25 @@ const browserApi: BrowserApi = {
 if (process.contextIsolated) {
   try {
     contextBridge.exposeInMainWorld('browserApi', browserApi)
+    contextBridge.exposeInMainWorld('ipcRenderer', {
+      invoke: (channel: string, ...args: unknown[]) => ipcRenderer.invoke(channel, ...args),
+      on: (channel: string, listener: (event: unknown, ...args: unknown[]) => void) => {
+        ipcRenderer.on(channel, listener)
+        return () => ipcRenderer.removeListener(channel, listener)
+      }
+    })
   } catch (error) {
     console.error(error)
   }
 } else {
   // @ts-ignore (define in dts)
   window.browserApi = browserApi
+  // @ts-ignore (define in dts)
+  window.ipcRenderer = {
+    invoke: (channel: string, ...args: unknown[]) => ipcRenderer.invoke(channel, ...args),
+    on: (channel: string, listener: (event: unknown, ...args: unknown[]) => void) => {
+      ipcRenderer.on(channel, listener)
+      return () => ipcRenderer.removeListener(channel, listener)
+    }
+  }
 }

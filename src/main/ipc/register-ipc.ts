@@ -2,8 +2,13 @@ import type { BrowserWindow } from 'electron'
 import { ipcMain } from 'electron'
 import { IPC_CHANNELS } from '../../shared/ipc'
 import type { TabsController } from '../browser/tabs'
+import type { UpdaterService } from '../services/updater'
 
-export function registerBrowserIpc(mainWindow: BrowserWindow, tabs: TabsController): void {
+export function registerBrowserIpc(
+  mainWindow: BrowserWindow,
+  tabs: TabsController,
+  updater?: UpdaterService
+): void {
   ipcMain.handle(IPC_CHANNELS.GET_STATE, () => tabs.getState())
   ipcMain.handle(IPC_CHANNELS.CREATE_TAB, (_event, url?: string, pinned?: boolean) =>
     tabs.createTab(url, pinned)
@@ -22,6 +27,12 @@ export function registerBrowserIpc(mainWindow: BrowserWindow, tabs: TabsControll
     tabs.setContentVisible(visible)
   )
   // CONFIRM_EXTERNAL_SCHEME is registered in main/index.ts where dialog + shell are available
+
+  // Updater handlers
+  if (updater) {
+    ipcMain.handle(IPC_CHANNELS.UPDATER_CHECK_FOR_UPDATE, () => updater.checkForUpdates())
+    ipcMain.handle(IPC_CHANNELS.UPDATER_QUIT_AND_INSTALL, () => updater.quitAndInstall())
+  }
 
   tabs.onStateChanged((state) => {
     mainWindow.webContents.send(IPC_CHANNELS.STATE_CHANGED, state)

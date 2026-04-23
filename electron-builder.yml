@@ -1,43 +1,112 @@
-appId: com.electron.app
-productName: astian-browser
+appId: com.astian.browser
+productName: Astian Browser
+artifactName: ${name}-${version}-${arch}.${ext}
 directories:
   buildResources: build
+  output: dist
 files:
   - '!**/.vscode/*'
   - '!src/*'
   - '!electron.vite.config.{js,ts,mjs,cjs}'
   - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
-  - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
+  - '!{.env,.env.*,.npmrc,pnpm-lock.yaml,bun.lock}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  - '!node_modules/**'
+  - out/**
 asarUnpack:
   - resources/**
+
+# Windows Configuration
 win:
-  executableName: astian-browser
+  target:
+    - nsis
+    - portable
+  certificateFile: null
+  certificatePassword: null
+  signingHashAlgorithms:
+    - sha256
+  sign: ./scripts/sign.js
+
 nsis:
-  artifactName: ${name}-${version}-setup.${ext}
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
   shortcutName: ${productName}
-  uninstallDisplayName: ${productName}
-  createDesktopShortcut: always
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  artifactName: ${name}-${version}-setup.${ext}
+
+portable:
+  artifactName: ${name}-${version}-portable.${ext}
+
+# macOS Configuration
 mac:
+  target:
+    - dmg
+    - zip
+  identity: null
+  identityProperties:
+    identityHashAlgorithms:
+      - sha256
+      - sha1
   entitlementsInherit: build/entitlements.mac.plist
+  entitlements: build/entitlements.mac.plist
   extendInfo:
-    - NSCameraUsageDescription: Application requests access to the device's camera.
-    - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
-    - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
-    - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
+    NSCameraUsageDescription: Application requests access to the device's camera.
+    NSMicrophoneUsageDescription: Application requests access to the device's microphone.
+    NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
+    NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
   notarize: false
+  artifactName: ${name}-${version}-${arch}.${ext}
+
 dmg:
+  contents:
+    - x: 130
+      y: 220
+      type: file
+    - x: 438
+      y: 220
+      type: link
+      path: /Applications
   artifactName: ${name}-${version}.${ext}
+
+# Linux Configuration
 linux:
   target:
     - AppImage
-    - snap
     - deb
-  maintainer: electronjs.org
-  category: Utility
+    - rpm
+  maintainer: Astian Team
+  category: Network;WebBrowser
+  icon: build/icon.png
+  artifactName: ${name}-${version}-${arch}.${ext}
+
 appImage:
   artifactName: ${name}-${version}.${ext}
-npmRebuild: false
+
+deb:
+  depends:
+    - gconf2
+    - gconf-service
+    - libnotify4
+    - libappindicator1
+    - libxtst6
+    - libnss3
+  artifactName: ${name}-${version}-${arch}.${ext}
+
+rpm:
+  fpm:
+    - --after-install=build/rpm-after.sh
+  artifactName: ${name}-${version}-${arch}.${ext}
+
+# Auto-update Configuration
 publish:
-  provider: generic
-  url: https://example.com/auto-updates
+  provider: github
+  owner: astian
+  repo: astian-browser
+  releaseType: release
+  publishAutoUpdate: true
+  vPrefixedTagName: true
+
+npmRebuild: false

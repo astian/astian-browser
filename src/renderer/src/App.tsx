@@ -20,7 +20,9 @@ import {
 import type { BrowserState, BrowserTab, SearchEngine, TabLayout, Theme } from '@shared/ipc'
 import { SEARCH_ENGINES } from '@shared/ipc'
 import { CommandPalette } from '@renderer/components/browser/CommandPalette'
+import { ToastContainer, Toast } from '@renderer/components/Toast'
 import { useBrowserStore } from '@renderer/store/browser-store'
+import { useUpdater, quitAndInstallUpdate } from '@renderer/lib/useUpdater'
 
 function hostname(url: string): string {
   try {
@@ -140,7 +142,11 @@ function Onboarding({
           <div
             key={i}
             className={`h-1.5 rounded-full transition-all ${
-              i === step ? 'w-6 bg-blue-500' : i < step ? 'w-3 bg-blue-500/40' : 'w-3 bg-neutral-700'
+              i === step
+                ? 'w-6 bg-blue-500'
+                : i < step
+                  ? 'w-3 bg-blue-500/40'
+                  : 'w-3 bg-neutral-700'
             }`}
           />
         ))}
@@ -183,7 +189,10 @@ function Onboarding({
               }`}
               onClick={() => setSearchEngine(key)}
             >
-              <Search size={16} className={searchEngine === key ? 'text-blue-400' : 'text-neutral-500'} />
+              <Search
+                size={16}
+                className={searchEngine === key ? 'text-blue-400' : 'text-neutral-500'}
+              />
               <span className="flex-1 font-medium">{SEARCH_ENGINES[key].name}</span>
             </button>
           ))}
@@ -204,7 +213,9 @@ function Onboarding({
               }`}
               onClick={() => setTheme(t)}
             >
-              <div className="mb-3 flex justify-center">{t === 'dark' ? <Moon size={30} /> : <Sun size={30} />}</div>
+              <div className="mb-3 flex justify-center">
+                {t === 'dark' ? <Moon size={30} /> : <Sun size={30} />}
+              </div>
               <p className="text-sm font-medium">{t === 'dark' ? 'Oscuro' : 'Claro'}</p>
             </button>
           ))}
@@ -332,18 +343,29 @@ function SettingsPanel({
   const prefs = state.preferences
 
   return (
-    <div className="theme-backdrop fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
-      <div className="max-h-[80vh] w-[420px] overflow-y-auto rounded-2xl border border-neutral-700 bg-neutral-900 p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="theme-backdrop fixed inset-0 z-50 flex items-center justify-center"
+      onClick={onClose}
+    >
+      <div
+        className="max-h-[80vh] w-[420px] overflow-y-auto rounded-2xl border border-neutral-700 bg-neutral-900 p-5 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-semibold text-neutral-100">Preferencias</h2>
-          <button className="rounded-md p-1 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100" onClick={onClose}>
+          <button
+            className="rounded-md p-1 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100"
+            onClick={onClose}
+          >
             <X size={16} />
           </button>
         </div>
 
         <div className="space-y-5 text-sm">
           <div>
-            <p className="mb-2.5 text-xs font-medium uppercase tracking-wider text-neutral-500">Tema</p>
+            <p className="mb-2.5 text-xs font-medium uppercase tracking-wider text-neutral-500">
+              Tema
+            </p>
             <div className="flex gap-2">
               {(['dark', 'light'] as Theme[]).map((t) => (
                 <button
@@ -363,7 +385,9 @@ function SettingsPanel({
           </div>
 
           <div>
-            <p className="mb-2.5 text-xs font-medium uppercase tracking-wider text-neutral-500">Motor de búsqueda</p>
+            <p className="mb-2.5 text-xs font-medium uppercase tracking-wider text-neutral-500">
+              Motor de búsqueda
+            </p>
             <div className="flex flex-col gap-1.5">
               {(Object.keys(SEARCH_ENGINES) as SearchEngine[]).map((key) => (
                 <button
@@ -383,7 +407,9 @@ function SettingsPanel({
           </div>
 
           <div>
-            <p className="mb-2.5 text-xs font-medium uppercase tracking-wider text-neutral-500">Disposición</p>
+            <p className="mb-2.5 text-xs font-medium uppercase tracking-wider text-neutral-500">
+              Disposición
+            </p>
             <div className="flex gap-2">
               {(['horizontal', 'sidebar'] as TabLayout[]).map((l) => (
                 <button
@@ -402,14 +428,18 @@ function SettingsPanel({
           </div>
 
           <div>
-            <p className="mb-2.5 text-xs font-medium uppercase tracking-wider text-neutral-500">Adblock</p>
+            <p className="mb-2.5 text-xs font-medium uppercase tracking-wider text-neutral-500">
+              Adblock
+            </p>
             <button
               className={`w-full rounded-lg border px-3 py-2 text-xs ${
                 prefs.adblockEnabled
                   ? 'border-blue-500 bg-blue-600/20 text-blue-200'
                   : 'border-neutral-700 bg-neutral-800 text-neutral-300'
               }`}
-              onClick={() => void window.browserApi.updatePreferences({ adblockEnabled: !prefs.adblockEnabled })}
+              onClick={() =>
+                void window.browserApi.updatePreferences({ adblockEnabled: !prefs.adblockEnabled })
+              }
             >
               {prefs.adblockEnabled ? 'Activado' : 'Desactivado'}
             </button>
@@ -427,7 +457,56 @@ function App(): React.JSX.Element {
   const [showSettings, setShowSettings] = useState(false)
   const [showPalette, setShowPalette] = useState(false)
   const [externalUrl, setExternalUrl] = useState<string | null>(null)
+  const [toasts, setToasts] = useState<Toast[]>([])
   const urlRef = useRef<HTMLInputElement>(null)
+
+  const addToast = (toast: Omit<Toast, 'id'>) => {
+    const id = Math.random().toString(36).substr(2, 9)
+    setToasts((prev) => [...prev, { ...toast, id, duration: toast.duration ?? 5000 }])
+  }
+
+  const removeToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id))
+  }
+
+  // Set up updater listeners
+  useUpdater({
+    onCheckingForUpdate: () => {
+      console.log('[UI] Checking for updates...')
+    },
+    onUpdateAvailable: (version) => {
+      addToast({
+        type: 'info',
+        title: 'Actualización disponible',
+        message: `Astian ${version} está disponible.`
+      })
+    },
+    onUpdateNotAvailable: () => {
+      console.log('[UI] App is up to date')
+    },
+    onDownloadProgress: (percent) => {
+      // Could update a global progress state if needed
+      console.log(`[UI] Download progress: ${percent.toFixed(0)}%`)
+    },
+    onUpdateDownloaded: (version) => {
+      addToast({
+        type: 'success',
+        title: 'Actualización lista',
+        message: `Astian ${version} está lista para instalar.`,
+        action: {
+          label: 'Reiniciar ahora',
+          onClick: () => void quitAndInstallUpdate()
+        }
+      })
+    },
+    onError: (message) => {
+      addToast({
+        type: 'error',
+        title: 'Error en actualización',
+        message
+      })
+    }
+  })
 
   useEffect(() => {
     let offState: (() => void) | undefined
@@ -460,20 +539,17 @@ function App(): React.JSX.Element {
     void window.browserApi?.setContentVisible(!showSettings && !showPalette && !externalUrl)
   }, [showSettings, showPalette, externalUrl])
 
-  const onKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      const mod = e.ctrlKey || e.metaKey
-      if (mod && e.key === 'k') {
-        e.preventDefault()
-        setShowPalette((v) => !v)
-      }
-      if (mod && e.key === 't') {
-        e.preventDefault()
-        void window.browserApi.createTab()
-      }
-    },
-    []
-  )
+  const onKeyDown = useCallback((e: KeyboardEvent) => {
+    const mod = e.ctrlKey || e.metaKey
+    if (mod && e.key === 'k') {
+      e.preventDefault()
+      setShowPalette((v) => !v)
+    }
+    if (mod && e.key === 't') {
+      e.preventDefault()
+      void window.browserApi.createTab()
+    }
+  }, [])
 
   useEffect(() => {
     window.addEventListener('keydown', onKeyDown)
@@ -518,22 +594,41 @@ function App(): React.JSX.Element {
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-neutral-950 text-neutral-100 select-none">
-      <div className="flex shrink-0 items-center gap-1 border-b border-neutral-800 bg-neutral-900 px-2" style={{ height: 48 }}>
-        <NavBtn onClick={() => void window.browserApi.goBack()} title="Atrás" disabled={!activeTab?.canGoBack}>
+      <div
+        className="flex shrink-0 items-center gap-1 border-b border-neutral-800 bg-neutral-900 px-2"
+        style={{ height: 48 }}
+      >
+        <NavBtn
+          onClick={() => void window.browserApi.goBack()}
+          title="Atrás"
+          disabled={!activeTab?.canGoBack}
+        >
           <ArrowLeft size={15} />
         </NavBtn>
-        <NavBtn onClick={() => void window.browserApi.goForward()} title="Adelante" disabled={!activeTab?.canGoForward}>
+        <NavBtn
+          onClick={() => void window.browserApi.goForward()}
+          title="Adelante"
+          disabled={!activeTab?.canGoForward}
+        >
           <ArrowRight size={15} />
         </NavBtn>
         <NavBtn onClick={() => void window.browserApi.reload()} title="Recargar">
-          {activeTab?.loading ? <Loader2 size={15} className="animate-spin" /> : <RotateCw size={15} />}
+          {activeTab?.loading ? (
+            <Loader2 size={15} className="animate-spin" />
+          ) : (
+            <RotateCw size={15} />
+          )}
         </NavBtn>
 
         <form onSubmit={navigate} className="mx-1.5 flex flex-1 items-center">
           <div className="relative flex w-full items-center">
             {activeTab && (
               <span className="pointer-events-none absolute left-3 text-neutral-500">
-                {isSecure(activeTab.url) ? <Lock size={12} className="text-green-500" /> : <Globe size={12} />}
+                {isSecure(activeTab.url) ? (
+                  <Lock size={12} className="text-green-500" />
+                ) : (
+                  <Globe size={12} />
+                )}
               </span>
             )}
             <input
@@ -548,25 +643,41 @@ function App(): React.JSX.Element {
           </div>
         </form>
 
+        <NavBtn
+          onClick={() => setShowPalette((v) => !v)}
+          title="Command Palette"
+          active={showPalette}
+        >
+          <Search size={15} />
+        </NavBtn>
         <NavBtn onClick={() => void window.browserApi.createTab()} title="Nueva pestaña">
           <Plus size={15} />
         </NavBtn>
         <NavBtn
           onClick={() =>
-            void window.browserApi.updatePreferences({ tabLayout: isSidebar ? 'horizontal' : 'sidebar' })
+            void window.browserApi.updatePreferences({
+              tabLayout: isSidebar ? 'horizontal' : 'sidebar'
+            })
           }
           title={isSidebar ? 'Horizontal' : 'Sidebar'}
           active={isSidebar}
         >
           {isSidebar ? <Rows3 size={15} /> : <LayoutPanelLeft size={15} />}
         </NavBtn>
-        <NavBtn onClick={() => setShowSettings((v) => !v)} title="Preferencias" active={showSettings}>
+        <NavBtn
+          onClick={() => setShowSettings((v) => !v)}
+          title="Preferencias"
+          active={showSettings}
+        >
           <Settings2 size={15} />
         </NavBtn>
       </div>
 
       {!isSidebar && (
-        <div className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-neutral-800 bg-neutral-900 px-2 pb-1.5 pt-1" style={{ height: 40 }}>
+        <div
+          className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-neutral-800 bg-neutral-900 px-2 pb-1.5 pt-1"
+          style={{ height: 40 }}
+        >
           {state.tabs.map((tab) => (
             <TabChip key={tab.id} tab={tab} active={tab.id === state.activeTabId} />
           ))}
@@ -578,14 +689,18 @@ function App(): React.JSX.Element {
           <aside className="flex w-56 shrink-0 flex-col gap-0.5 overflow-y-auto border-r border-neutral-800 bg-neutral-900 p-2">
             {pinnedTabs.length > 0 && (
               <>
-                <p className="px-2 pb-0.5 pt-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-600">Fijadas</p>
+                <p className="px-2 pb-0.5 pt-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-600">
+                  Fijadas
+                </p>
                 {pinnedTabs.map((t) => (
                   <SideTab key={t.id} tab={t} active={t.id === state.activeTabId} />
                 ))}
                 <div className="mx-2 my-1.5 border-t border-neutral-800" />
               </>
             )}
-            <p className="px-2 pb-0.5 pt-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-600">Pestañas</p>
+            <p className="px-2 pb-0.5 pt-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-600">
+              Pestañas
+            </p>
             {regularTabs.map((t) => (
               <SideTab key={t.id} tab={t} active={t.id === state.activeTabId} />
             ))}
@@ -611,7 +726,10 @@ function App(): React.JSX.Element {
           }}
         />
       )}
-      {externalUrl && <ExternalSchemePrompt url={externalUrl} onClose={() => setExternalUrl(null)} />}
+      {externalUrl && (
+        <ExternalSchemePrompt url={externalUrl} onClose={() => setExternalUrl(null)} />
+      )}
+      <ToastContainer toasts={toasts} onClose={removeToast} />
     </div>
   )
 }

@@ -71,5 +71,8 @@ export const IPC_CHANNELS = {
   SET_CONTENT_VISIBLE: 'browser:set-content-visible',
   STATE_CHANGED: 'browser:state-changed',
   CONFIRM_EXTERNAL_SCHEME: 'browser:confirm-external-scheme',
-  EXTERNAL_SCHEME_REQUEST: 'browser:external-scheme-request'
+  EXTERNAL_SCHEME_REQUEST: 'browser:external-scheme-request',
+  // Updater channels
+  UPDATER_CHECK_FOR_UPDATE: 'updater:check-for-update',
+  UPDATER_QUIT_AND_INSTALL: 'updater:quit-and-install'
 } as const

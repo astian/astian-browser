@@ -33,7 +33,11 @@ interface Props {
   onOpenSettings: () => void
 }
 
-function buildActions(state: BrowserState, onClose: () => void, onOpenSettings: () => void): PaletteAction[] {
+function buildActions(
+  state: BrowserState,
+  onClose: () => void,
+  onOpenSettings: () => void
+): PaletteAction[] {
   const activeTab = state.tabs.find((t) => t.id === state.activeTabId)
   const isSidebar = state.preferences.tabLayout === 'sidebar'
   const isDark = state.preferences.theme === 'dark'
@@ -90,7 +94,9 @@ function buildActions(state: BrowserState, onClose: () => void, onOpenSettings: 
       label: isSidebar ? 'Cambiar a pestañas horizontales' : 'Cambiar a sidebar',
       icon: isSidebar ? <Rows3 size={14} /> : <LayoutPanelLeft size={14} />,
       run: async () => {
-        await window.browserApi.updatePreferences({ tabLayout: isSidebar ? 'horizontal' : 'sidebar' })
+        await window.browserApi.updatePreferences({
+          tabLayout: isSidebar ? 'horizontal' : 'sidebar'
+        })
         onClose()
       }
     },
@@ -174,9 +180,7 @@ export function CommandPalette({ state, onClose, onOpenSettings }: Props): React
     includeScore: true
   })
 
-  const results = query.trim()
-    ? fuse.search(query).map((r) => r.item)
-    : allActions
+  const results = query.trim() ? fuse.search(query).map((r) => r.item) : allActions
 
   const runSelected = useCallback(
     (idx: number) => {

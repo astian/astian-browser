@@ -6,6 +6,7 @@ import { TabsController } from './browser/tabs'
 import { registerBrowserIpc } from './ipc/register-ipc'
 import { initDatabase } from './db/client'
 import { IPC_CHANNELS } from '../shared/ipc'
+import { initUpdater, updaterService } from './services/updater'
 
 // Register astian:// as a standard scheme before app ready
 protocol.registerSchemesAsPrivileged([
@@ -108,7 +109,10 @@ function createWindow(): void {
 
   // Register browser IPC before renderer boot to avoid race conditions on initial getState.
   const tabs = new TabsController(mainWindow)
-  registerBrowserIpc(mainWindow, tabs)
+  if (updaterService) {
+    updaterService.setMainWindow(mainWindow)
+  }
+  registerBrowserIpc(mainWindow, tabs, updaterService || undefined)
 
   // IPC: renderer asks user to confirm opening an external scheme
   ipcMain.handle(IPC_CHANNELS.CONFIRM_EXTERNAL_SCHEME, async (_event, url: string) => {
@@ -140,11 +144,22 @@ app.whenReady().then(() => {
   initDatabase()
   registerAstianProtocol()
 
+  // Initialize updater early (before createWindow)
+  initUpdater({
+    owner: 'astian',
+    repo: 'astian-browser'
+  })
+
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
 
   createWindow()
+
+  // Start periodic update checks after window creation
+  if (updaterService) {
+    updaterService.startPeriodicCheck()
+  }
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the

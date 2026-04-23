@@ -21,22 +21,12 @@ jobs:
 
     steps:
       - name: Checkout code
-        id: checkout_primary
-        uses: actions/checkout@v5
-        continue-on-error: true
-        with:
-          fetch-depth: 0
-          persist-credentials: true
-
-      - name: Retry checkout after transient GitHub failure
-        if: steps.checkout_primary.outcome == 'failure'
         uses: actions/checkout@v5
         with:
-          fetch-depth: 0
+          ref: ${{ github.sha }}
+          fetch-depth: 1
           persist-credentials: true
-
-      - name: Verify repository checkout
-        run: git rev-parse HEAD
+          show-progress: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v5

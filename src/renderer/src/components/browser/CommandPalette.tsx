@@ -217,7 +217,7 @@ export function CommandPalette({ state, onClose, onOpenSettings }: Props): React
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 pt-24 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-start justify-center bg-transparent pt-24"
       onClick={onClose}
     >
       <div

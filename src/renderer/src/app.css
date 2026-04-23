@@ -6,6 +6,14 @@
   color-scheme: dark;
 }
 
+html.dark {
+  color-scheme: dark;
+}
+
+html.light {
+  color-scheme: light;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -18,6 +26,98 @@ body,
   height: 100%;
   font-family: 'Manrope', 'Segoe UI', sans-serif;
   background: radial-gradient(circle at 80% 10%, #0f172a 0%, #020617 55%);
+}
+
+html.light,
+html.light body {
+  background: radial-gradient(circle at 85% 10%, #e2e8f0 0%, #f8fafc 55%);
+}
+
+/* Light theme remap for current neutral-* utility classes used in the app. */
+html.light .bg-neutral-950 {
+  background-color: rgb(248 250 252) !important;
+}
+
+html.light .bg-neutral-900 {
+  background-color: rgb(241 245 249) !important;
+}
+
+html.light .bg-neutral-800 {
+  background-color: rgb(226 232 240) !important;
+}
+
+html.light .bg-neutral-700 {
+  background-color: rgb(203 213 225) !important;
+}
+
+html.light .text-neutral-100 {
+  color: rgb(15 23 42) !important;
+}
+
+html.light .text-neutral-300 {
+  color: rgb(15 23 42) !important;
+}
+
+html.light .text-neutral-400 {
+  color: rgb(30 41 59) !important;
+}
+
+html.light .text-neutral-500,
+html.light .text-neutral-600 {
+  color: rgb(51 65 85) !important;
+}
+
+html.light .border-neutral-800,
+html.light .border-neutral-700,
+html.light .border-neutral-600 {
+  border-color: rgb(203 213 225) !important;
+}
+
+html.light .text-blue-100,
+html.light .text-blue-200,
+html.light .text-blue-300 {
+  color: rgb(30 64 175) !important;
+}
+
+html.light .text-blue-400 {
+  color: rgb(37 99 235) !important;
+}
+
+html.light .hover\:bg-neutral-800:hover,
+html.light .hover\:bg-neutral-700:hover,
+html.light .hover\:bg-neutral-600:hover {
+  background-color: rgb(226 232 240) !important;
+}
+
+html.light .hover\:text-neutral-100:hover {
+  color: rgb(15 23 42) !important;
+}
+
+html.light .placeholder-neutral-500::placeholder {
+  color: rgb(100 116 139) !important;
+}
+
+/* Theme-aware overlays for settings/palette/external prompts. */
+.theme-backdrop {
+  background-color: rgb(0 0 0 / 0.35);
+}
+
+html.light .theme-backdrop {
+  background-color: rgb(148 163 184 / 0.14);
+}
+
+html.light .bg-blue-600\/20 {
+  background-color: rgb(219 234 254) !important;
+}
+
+html.light .border-blue-500,
+html.light .border-blue-500\/60 {
+  border-color: rgb(59 130 246) !important;
+}
+
+html.light .hover\:bg-blue-600\/10:hover,
+html.light .hover\:bg-blue-50:hover {
+  background-color: rgb(219 234 254) !important;
 }
 
 button,

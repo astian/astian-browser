@@ -69,7 +69,7 @@ function ExternalSchemePrompt({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div className="theme-backdrop fixed inset-0 z-50 flex items-center justify-center">
       <div className="w-full max-w-sm rounded-2xl border border-neutral-700 bg-neutral-900 p-6 shadow-2xl">
         <div className="mb-4 flex items-start gap-3">
           <ShieldAlert size={20} className="mt-0.5 shrink-0 text-amber-400" />
@@ -119,7 +119,11 @@ function Onboarding({
   const [theme, setTheme] = useState<Theme>('dark')
 
   return (
-    <div className="flex h-screen w-screen flex-col items-center justify-center bg-neutral-950 text-neutral-100">
+    <div
+      className={`flex h-screen w-screen flex-col items-center justify-center ${
+        theme === 'light' ? 'bg-slate-50 text-slate-900' : 'bg-neutral-950 text-neutral-100'
+      }`}
+    >
       <div className="mb-8 text-center">
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-600 text-3xl font-bold shadow-xl shadow-blue-900/60">
           A
@@ -150,7 +154,9 @@ function Onboarding({
               className={`rounded-2xl border p-6 transition-all ${
                 layout === l
                   ? 'border-blue-500 bg-blue-600/20 text-blue-100'
-                  : 'border-neutral-700 bg-neutral-900 text-neutral-300 hover:border-blue-500 hover:bg-blue-600/10'
+                  : theme === 'light'
+                    ? 'border-slate-300 bg-white text-slate-700 hover:border-blue-500 hover:bg-blue-50'
+                    : 'border-neutral-700 bg-neutral-900 text-neutral-300 hover:border-blue-500 hover:bg-blue-600/10'
               }`}
               onClick={() => setLayout(l)}
             >
@@ -171,7 +177,9 @@ function Onboarding({
               className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left text-sm transition-colors ${
                 searchEngine === key
                   ? 'border-blue-500 bg-blue-600/20 text-blue-100'
-                  : 'border-neutral-700 bg-neutral-900 text-neutral-300 hover:border-neutral-600 hover:bg-neutral-800'
+                  : theme === 'light'
+                    ? 'border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50'
+                    : 'border-neutral-700 bg-neutral-900 text-neutral-300 hover:border-neutral-600 hover:bg-neutral-800'
               }`}
               onClick={() => setSearchEngine(key)}
             >
@@ -190,7 +198,9 @@ function Onboarding({
               className={`rounded-2xl border p-6 transition-all ${
                 theme === t
                   ? 'border-blue-500 bg-blue-600/20 text-blue-100'
-                  : 'border-neutral-700 bg-neutral-900 text-neutral-300 hover:border-blue-500 hover:bg-blue-600/10'
+                  : theme === 'light'
+                    ? 'border-slate-300 bg-white text-slate-700 hover:border-blue-500 hover:bg-blue-50'
+                    : 'border-neutral-700 bg-neutral-900 text-neutral-300 hover:border-blue-500 hover:bg-blue-600/10'
               }`}
               onClick={() => setTheme(t)}
             >
@@ -204,7 +214,11 @@ function Onboarding({
       <div className="mt-8 flex items-center gap-3">
         {step > 0 && (
           <button
-            className="rounded-lg border border-neutral-700 px-5 py-2.5 text-sm text-neutral-300 hover:bg-neutral-800"
+            className={`rounded-lg border px-5 py-2.5 text-sm ${
+              theme === 'light'
+                ? 'border-slate-300 text-slate-700 hover:bg-slate-100'
+                : 'border-neutral-700 text-neutral-300 hover:bg-neutral-800'
+            }`}
             onClick={() => setStep((s) => (s - 1) as 0 | 1 | 2)}
           >
             Atrás
@@ -318,7 +332,7 @@ function SettingsPanel({
   const prefs = state.preferences
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+    <div className="theme-backdrop fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
       <div className="max-h-[80vh] w-[420px] overflow-y-auto rounded-2xl border border-neutral-700 bg-neutral-900 p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-semibold text-neutral-100">Preferencias</h2>

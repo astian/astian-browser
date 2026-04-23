@@ -459,14 +459,13 @@ function App(): React.JSX.Element {
   const [externalUrl, setExternalUrl] = useState<string | null>(null)
   const [toasts, setToasts] = useState<Toast[]>([])
   const urlRef = useRef<HTMLInputElement>(null)
-  const theme = state?.preferences.theme
 
-  const addToast = (toast: Omit<Toast, 'id'>): void => {
+  const addToast = (toast: Omit<Toast, 'id'>) => {
     const id = Math.random().toString(36).substr(2, 9)
     setToasts((prev) => [...prev, { ...toast, id, duration: toast.duration ?? 5000 }])
   }
 
-  const removeToast = (id: string): void => {
+  const removeToast = (id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id))
   }
 
@@ -558,11 +557,11 @@ function App(): React.JSX.Element {
   }, [onKeyDown])
 
   useEffect(() => {
-    if (!theme) return
+    if (!state) return
     const root = document.documentElement
-    root.classList.toggle('dark', theme === 'dark')
-    root.classList.toggle('light', theme === 'light')
-  }, [theme])
+    root.classList.toggle('dark', state.preferences.theme === 'dark')
+    root.classList.toggle('light', state.preferences.theme === 'light')
+  }, [state?.preferences.theme])
 
   if (!state && !bootError) return <Splash />
   if (!state) return <ErrorScreen message={bootError ?? 'Error desconocido'} />
@@ -644,26 +643,8 @@ function App(): React.JSX.Element {
           </div>
         </form>
 
-        <NavBtn
-          onClick={() => setShowPalette((v) => !v)}
-          title="Command Palette"
-          active={showPalette}
-        >
-          <Search size={15} />
-        </NavBtn>
         <NavBtn onClick={() => void window.browserApi.createTab()} title="Nueva pestaña">
           <Plus size={15} />
-        </NavBtn>
-        <NavBtn
-          onClick={() =>
-            void window.browserApi.updatePreferences({
-              tabLayout: isSidebar ? 'horizontal' : 'sidebar'
-            })
-          }
-          title={isSidebar ? 'Horizontal' : 'Sidebar'}
-          active={isSidebar}
-        >
-          {isSidebar ? <Rows3 size={15} /> : <LayoutPanelLeft size={15} />}
         </NavBtn>
         <NavBtn
           onClick={() => setShowSettings((v) => !v)}

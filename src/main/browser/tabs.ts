@@ -3,9 +3,12 @@ import type { BrowserState, BrowserTab, Preferences } from '../../shared/ipc'
 import { loadState, saveState } from '../app/state-store'
 
 const NEW_TAB_URL = 'https://astiango.com'
-const RESERVED_TOP_HEIGHT_HORIZONTAL = 120
-const RESERVED_TOP_HEIGHT_SIDEBAR = 74
-const RESERVED_SIDEBAR_WIDTH = 290
+// Heights must match the React shell header in App.tsx
+// Horizontal: navBar(48) + tabStrip(40) = 88 → pad to 92
+// Sidebar: navBar(48) only → pad to 52
+const RESERVED_TOP_HEIGHT_HORIZONTAL = 92
+const RESERVED_TOP_HEIGHT_SIDEBAR = 52
+const RESERVED_SIDEBAR_WIDTH = 224
 
 interface ManagedTab {
   view: WebContentsView
@@ -151,11 +154,14 @@ export class TabsController {
     }
 
     this.activeTabId = tabId
+    const onboarded = this.preferences.onboardingCompleted
 
     for (const [id, managed] of this.tabs.entries()) {
-      const visible = id === tabId
-      managed.view.setVisible(visible)
-      if (visible) {
+      const isActive = id === tabId
+      // Hide ALL views when onboarding is not done so the React
+      // modal receives clicks (native views always sit on top of webContents).
+      managed.view.setVisible(isActive && onboarded)
+      if (isActive && onboarded) {
         this.syncActiveViewBounds()
         managed.view.webContents.focus()
       }
@@ -214,6 +220,13 @@ export class TabsController {
 
   updatePreferences(patch: Partial<Preferences>): BrowserState {
     this.preferences = { ...this.preferences, ...patch }
+    // If onboarding just completed, make the active view visible.
+    if (patch.onboardingCompleted === true) {
+      const active = this.getActiveTab()
+      if (active) {
+        active.view.setVisible(true)
+      }
+    }
     this.syncActiveViewBounds()
     this.emit()
     return this.getState()
@@ -228,10 +241,15 @@ export class TabsController {
     const active = this.getActiveTab()
     if (!active) return
 
+    // Don't position/show view during onboarding.
+    if (!this.preferences.onboardingCompleted) {
+      active.view.setVisible(false)
+      return
+    }
+
     const bounds = this.window.getContentBounds()
     const usingSidebarLayout = this.preferences.tabLayout === 'sidebar'
-    const leftInset =
-      this.preferences.sidebarVisible && usingSidebarLayout ? RESERVED_SIDEBAR_WIDTH : 0
+    const leftInset = usingSidebarLayout ? RESERVED_SIDEBAR_WIDTH : 0
     const topInset = usingSidebarLayout
       ? RESERVED_TOP_HEIGHT_SIDEBAR
       : RESERVED_TOP_HEIGHT_HORIZONTAL
@@ -242,6 +260,7 @@ export class TabsController {
       width: Math.max(bounds.width - leftInset, 0),
       height: Math.max(bounds.height - topInset, 0)
     })
+    active.view.setVisible(true)
   }
 
   private emit(): void {

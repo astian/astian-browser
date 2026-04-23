@@ -6,8 +6,6 @@ import { TabsController } from './browser/tabs'
 import { registerBrowserIpc } from './ipc/register-ipc'
 import { initDatabase } from './db/client'
 
-
-
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
     width: 1360,

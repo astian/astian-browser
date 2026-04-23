@@ -98,7 +98,9 @@ function Onboarding({ onChoose }: { onChoose: (layout: TabLayout) => void }): Re
         </button>
       </div>
 
-      <p className="text-xs text-neutral-600">Puedes cambiarlo en cualquier momento desde preferencias</p>
+      <p className="text-xs text-neutral-600">
+        Puedes cambiarlo en cualquier momento desde preferencias
+      </p>
     </div>
   )
 }
@@ -132,13 +134,7 @@ function NavBtn({
   )
 }
 
-function TabChip({
-  tab,
-  active
-}: {
-  tab: BrowserTab
-  active: boolean
-}): React.JSX.Element {
+function TabChip({ tab, active }: { tab: BrowserTab; active: boolean }): React.JSX.Element {
   return (
     <button
       className={`group flex h-7 min-w-0 max-w-[180px] shrink-0 items-center gap-1.5 rounded-md border px-2.5 text-xs transition-colors ${
@@ -171,13 +167,7 @@ function TabChip({
   )
 }
 
-function SideTab({
-  tab,
-  active
-}: {
-  tab: BrowserTab
-  active: boolean
-}): React.JSX.Element {
+function SideTab({ tab, active }: { tab: BrowserTab; active: boolean }): React.JSX.Element {
   return (
     <button
       className={`group flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors ${
@@ -216,7 +206,6 @@ function SettingsPanel({
   state: BrowserState
   onClose: () => void
 }): React.JSX.Element {
-  const isSidebar = state.preferences.tabLayout === 'sidebar'
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
@@ -317,28 +306,28 @@ function App(): React.JSX.Element {
   const urlRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (!window.browserApi) {
-      setBootError('browserApi no disponible — verifica el preload.')
-      return
-    }
-
     let off: (() => void) | undefined
 
-    window.browserApi
-      .getState()
-      .then((s) => {
-        setState(s)
-        const active = s.tabs.find((t) => t.id === s.activeTabId)
-        setUrlInput(active?.url ?? '')
-        off = window.browserApi.onStateChanged((updated) => {
-          setState(updated)
-          const cur = updated.tabs.find((t) => t.id === updated.activeTabId)
-          if (cur) setUrlInput(cur.url)
-        })
+    const init = async (): Promise<void> => {
+      if (!window.browserApi) {
+        setBootError('browserApi no disponible — verifica el preload.')
+        return
+      }
+
+      const s = await window.browserApi.getState()
+      setState(s)
+      const active = s.tabs.find((t) => t.id === s.activeTabId)
+      setUrlInput(active?.url ?? '')
+      off = window.browserApi.onStateChanged((updated) => {
+        setState(updated)
+        const cur = updated.tabs.find((t) => t.id === updated.activeTabId)
+        if (cur) setUrlInput(cur.url)
       })
-      .catch((err: unknown) => {
-        setBootError(String(err))
-      })
+    }
+
+    init().catch((err: unknown) => {
+      setBootError(String(err))
+    })
 
     return () => off?.()
   }, [setState])
@@ -375,7 +364,6 @@ function App(): React.JSX.Element {
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-neutral-950 text-neutral-100 select-none">
-
       {/* ── nav bar — height: 48px ─────────────────────────────────── */}
       <div
         className="flex shrink-0 items-center gap-1 border-b border-neutral-800 bg-neutral-900 px-2"
@@ -441,7 +429,11 @@ function App(): React.JSX.Element {
         >
           {isSidebar ? <Rows3 size={15} /> : <LayoutPanelLeft size={15} />}
         </NavBtn>
-        <NavBtn onClick={() => setShowSettings((v) => !v)} title="Preferencias" active={showSettings}>
+        <NavBtn
+          onClick={() => setShowSettings((v) => !v)}
+          title="Preferencias"
+          active={showSettings}
+        >
           <Settings2 size={15} />
         </NavBtn>
       </div>
@@ -469,9 +461,7 @@ function App(): React.JSX.Element {
       <div className="flex min-h-0 flex-1">
         {/* sidebar — width: 224px (w-56) */}
         {isSidebar && (
-          <aside
-            className="flex w-56 shrink-0 flex-col gap-0.5 overflow-y-auto border-r border-neutral-800 bg-neutral-900 p-2"
-          >
+          <aside className="flex w-56 shrink-0 flex-col gap-0.5 overflow-y-auto border-r border-neutral-800 bg-neutral-900 p-2">
             {pinnedTabs.length > 0 && (
               <>
                 <p className="px-2 pb-0.5 pt-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-600">
@@ -503,9 +493,7 @@ function App(): React.JSX.Element {
       </div>
 
       {/* ── settings modal ─────────────────────────────────────────── */}
-      {showSettings && (
-        <SettingsPanel state={state} onClose={() => setShowSettings(false)} />
-      )}
+      {showSettings && <SettingsPanel state={state} onClose={() => setShowSettings(false)} />}
     </div>
   )
 }

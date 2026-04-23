@@ -1,6 +1,7 @@
 name: Release
 
 on:
+  workflow_dispatch:
   push:
     tags:
       - 'v*.*.*'
@@ -70,6 +71,21 @@ jobs:
           # APPLE_ID: ${{ secrets.APPLE_ID }}
           # APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: astian-${{ matrix.platform }}-${{ github.sha }}
+          path: |
+            dist/**/*.exe
+            dist/**/*.msi
+            dist/**/*.AppImage
+            dist/**/*.deb
+            dist/**/*.rpm
+            dist/**/*.dmg
+            dist/**/*.zip
+            dist/**/latest*.yml
+          if-no-files-found: warn
 
       - name: Upload artifacts to GitHub Release
         uses: softprops/action-gh-release@v1

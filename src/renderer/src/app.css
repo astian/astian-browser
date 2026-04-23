@@ -100,7 +100,6 @@ html.light .placeholder-neutral-500::placeholder {
 /* Theme-aware overlays for settings/palette/external prompts. */
 .theme-backdrop {
   background-color: rgb(0 0 0 / 0.35);
-  backdrop-filter: blur(4px);
 }
 
 html.light .theme-backdrop {

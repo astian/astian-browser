@@ -7,7 +7,10 @@ const DEFAULT_PREFERENCES: Preferences = {
   tabLayout: 'horizontal',
   sidebarVisible: true,
   onboardingCompleted: false,
-  welcomeDismissed: false
+  welcomeDismissed: false,
+  theme: 'light',
+  searchEngine: 'astiango',
+  adblockEnabled: false
 }
 
 const DEFAULT_STATE: BrowserState = {

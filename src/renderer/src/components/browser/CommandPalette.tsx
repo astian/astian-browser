@@ -31,12 +31,18 @@ interface Props {
   state: BrowserState
   onClose: () => void
   onOpenSettings: () => void
+  onOpenHistory: () => void
+  onOpenBookmarks: () => void
+  onOpenExtensions: () => void
 }
 
 function buildActions(
   state: BrowserState,
   onClose: () => void,
-  onOpenSettings: () => void
+  onOpenSettings: () => void,
+  onOpenHistory: () => void,
+  onOpenBookmarks: () => void,
+  onOpenExtensions: () => void
 ): PaletteAction[] {
   const activeTab = state.tabs.find((t) => t.id === state.activeTabId)
   const isSidebar = state.preferences.tabLayout === 'sidebar'
@@ -130,10 +136,9 @@ function buildActions(
     {
       id: 'navigate-history',
       label: 'Ver historial',
-      description: 'astian://history',
       icon: <History size={14} />,
-      run: async () => {
-        await window.browserApi.createTab('astian://history')
+      run: () => {
+        onOpenHistory()
         onClose()
       }
     },
@@ -141,12 +146,51 @@ function buildActions(
       id: 'navigate-bookmarks',
       label: 'Ver marcadores',
       icon: <Bookmark size={14} />,
-      run: async () => {
-        await window.browserApi.createTab('https://astiango.com')
+      run: () => {
+        onOpenBookmarks()
+        onClose()
+      }
+    },
+    {
+      id: 'open-extensions',
+      label: 'Administrar extensiones',
+      icon: <LayoutPanelLeft size={14} />,
+      run: () => {
+        onOpenExtensions()
         onClose()
       }
     }
   ]
+
+  for (const profile of state.profiles) {
+    actions.push({
+      id: `switch-profile-${profile.id}`,
+      label:
+        profile.id === state.activeProfileId
+          ? `Perfil activo: ${profile.name}`
+          : `Cambiar perfil: ${profile.name}`,
+      icon: <Pin size={14} className={profile.id === state.activeProfileId ? 'text-blue-400' : ''} />,
+      run: async () => {
+        await window.browserApi.switchProfile(profile.id)
+        onClose()
+      }
+    })
+  }
+
+  for (const space of state.spaces.filter((item) => item.profileId === state.activeProfileId)) {
+    actions.push({
+      id: `switch-space-${space.id}`,
+      label:
+        space.id === state.activeSpaceId
+          ? `Space activo: ${space.name}`
+          : `Cambiar space: ${space.name}`,
+      icon: <Rows3 size={14} className={space.id === state.activeSpaceId ? 'text-blue-400' : ''} />,
+      run: async () => {
+        await window.browserApi.switchSpace(space.id)
+        onClose()
+      }
+    })
+  }
 
   // Add open tabs as actions
   for (const tab of state.tabs) {
@@ -166,13 +210,27 @@ function buildActions(
   return actions
 }
 
-export function CommandPalette({ state, onClose, onOpenSettings }: Props): React.JSX.Element {
+export function CommandPalette({
+  state,
+  onClose,
+  onOpenSettings,
+  onOpenHistory,
+  onOpenBookmarks,
+  onOpenExtensions
+}: Props): React.JSX.Element {
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
 
-  const allActions = buildActions(state, onClose, onOpenSettings)
+  const allActions = buildActions(
+    state,
+    onClose,
+    onOpenSettings,
+    onOpenHistory,
+    onOpenBookmarks,
+    onOpenExtensions
+  )
 
   const fuse = new Fuse(allActions, {
     keys: ['label', 'description'],

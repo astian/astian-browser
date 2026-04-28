@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { BrowserApi, ExternalSchemeRequest } from '../shared/ipc'
+import type { AppCommand, BrowserApi, ExternalSchemeRequest } from '../shared/ipc'
 import { IPC_CHANNELS } from '../shared/ipc'
 
 const browserApi: BrowserApi = {
@@ -13,6 +13,14 @@ const browserApi: BrowserApi = {
   goForward: () => ipcRenderer.invoke(IPC_CHANNELS.GO_FORWARD),
   reload: () => ipcRenderer.invoke(IPC_CHANNELS.RELOAD),
   updatePreferences: (patch) => ipcRenderer.invoke(IPC_CHANNELS.UPDATE_PREFERENCES, patch),
+  createProfile: (name) => ipcRenderer.invoke(IPC_CHANNELS.CREATE_PROFILE, name),
+  switchProfile: (profileId) => ipcRenderer.invoke(IPC_CHANNELS.SWITCH_PROFILE, profileId),
+  createSpace: (name) => ipcRenderer.invoke(IPC_CHANNELS.CREATE_SPACE, name),
+  switchSpace: (spaceId) => ipcRenderer.invoke(IPC_CHANNELS.SWITCH_SPACE, spaceId),
+  addBookmark: (url, title) => ipcRenderer.invoke(IPC_CHANNELS.ADD_BOOKMARK, url, title),
+  removeBookmark: (bookmarkId) => ipcRenderer.invoke(IPC_CHANNELS.REMOVE_BOOKMARK, bookmarkId),
+  installExtensionFromCrx: (filePath) =>
+    ipcRenderer.invoke(IPC_CHANNELS.INSTALL_EXTENSION_FROM_CRX, filePath),
   setContentVisible: (visible) => ipcRenderer.invoke(IPC_CHANNELS.SET_CONTENT_VISIBLE, visible),
   setContentBounds: (bounds) => ipcRenderer.invoke(IPC_CHANNELS.SET_CONTENT_BOUNDS, bounds),
   confirmExternalScheme: (url) => ipcRenderer.invoke(IPC_CHANNELS.CONFIRM_EXTERNAL_SCHEME, url),
@@ -29,6 +37,13 @@ const browserApi: BrowserApi = {
     ipcRenderer.on(IPC_CHANNELS.EXTERNAL_SCHEME_REQUEST, subscription)
     return () => {
       ipcRenderer.removeListener(IPC_CHANNELS.EXTERNAL_SCHEME_REQUEST, subscription)
+    }
+  },
+  onAppCommand: (listener): (() => void) => {
+    const subscription = (_event: unknown, command: AppCommand): void => listener(command)
+    ipcRenderer.on(IPC_CHANNELS.APP_COMMAND, subscription)
+    return () => {
+      ipcRenderer.removeListener(IPC_CHANNELS.APP_COMMAND, subscription)
     }
   }
 }

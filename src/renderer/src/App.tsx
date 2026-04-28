@@ -2,22 +2,28 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ArrowLeft,
   ArrowRight,
+  Bookmark,
+  FolderOpenDot,
   Globe,
+  History,
   LayoutPanelLeft,
   Loader2,
   Lock,
   Moon,
   Pin,
   Plus,
+  Puzzle,
   RotateCw,
   Rows3,
   Search,
   Settings2,
   ShieldAlert,
+  Star,
   Sun,
+  UserRound,
   X
 } from 'lucide-react'
-import type { BrowserState, BrowserTab, SearchEngine, TabLayout, Theme } from '@shared/ipc'
+import type { AppCommand, BrowserState, BrowserTab, SearchEngine, TabLayout, Theme } from '@shared/ipc'
 import { SEARCH_ENGINES } from '@shared/ipc'
 import { CommandPalette } from '@renderer/components/browser/CommandPalette'
 import { ToastContainer, Toast } from '@renderer/components/Toast'
@@ -450,6 +456,234 @@ function SettingsPanel({
               {prefs.adblockEnabled ? 'Activado' : 'Desactivado'}
             </button>
           </div>
+
+          <div>
+            <p className="mb-2.5 text-xs font-medium uppercase tracking-wider text-neutral-500">
+              Sleep Tabs
+            </p>
+            <button
+              className={`w-full rounded-lg border px-3 py-2 text-xs ${
+                prefs.sleepTabsEnabled
+                  ? 'border-blue-500 bg-blue-600/20 text-blue-200'
+                  : 'border-neutral-700 bg-neutral-800 text-neutral-300'
+              }`}
+              onClick={() =>
+                void window.browserApi.updatePreferences({ sleepTabsEnabled: !prefs.sleepTabsEnabled })
+              }
+            >
+              {prefs.sleepTabsEnabled ? 'Activado (10 min)' : 'Desactivado'}
+            </button>
+          </div>
+
+          <div>
+            <p className="mb-2.5 text-xs font-medium uppercase tracking-wider text-neutral-500">
+              Icono personalizado
+            </p>
+            <input
+              className="w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-xs text-neutral-200"
+              value={prefs.appIconGlyph}
+              maxLength={2}
+              onChange={(e) =>
+                void window.browserApi.updatePreferences({ appIconGlyph: e.target.value || 'A' })
+              }
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function HistoryPanel({
+  state,
+  onClose
+}: {
+  state: BrowserState
+  onClose: () => void
+}): React.JSX.Element {
+  return (
+    <div className="theme-backdrop fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
+      <div
+        className="max-h-[80vh] w-[640px] overflow-y-auto rounded-2xl border border-neutral-700 bg-neutral-900 p-5 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="font-semibold text-neutral-100">Historial</h2>
+          <button
+            className="rounded-md p-1 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100"
+            onClick={onClose}
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="space-y-1">
+          {state.history.length === 0 && (
+            <p className="rounded-lg border border-neutral-800 bg-neutral-850 px-3 py-8 text-center text-sm text-neutral-500">
+              Todavia no hay historial de navegacion.
+            </p>
+          )}
+          {state.history.map((entry) => (
+            <button
+              key={entry.id}
+              className="flex w-full items-center gap-3 rounded-lg border border-transparent px-3 py-2 text-left text-xs text-neutral-300 transition-colors hover:border-neutral-700 hover:bg-neutral-800"
+              onClick={() => {
+                void window.browserApi.createTab(entry.url)
+                onClose()
+              }}
+            >
+              <History size={13} className="shrink-0 text-neutral-500" />
+              <span className="min-w-0 flex-1 truncate">{entry.title || entry.url}</span>
+              <span className="max-w-[200px] truncate text-neutral-500">{hostname(entry.url)}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function BookmarksPanel({
+  state,
+  onClose
+}: {
+  state: BrowserState
+  onClose: () => void
+}): React.JSX.Element {
+  return (
+    <div className="theme-backdrop fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
+      <div
+        className="max-h-[80vh] w-[640px] overflow-y-auto rounded-2xl border border-neutral-700 bg-neutral-900 p-5 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="font-semibold text-neutral-100">Marcadores</h2>
+          <button
+            className="rounded-md p-1 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100"
+            onClick={onClose}
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="mb-3 flex gap-2">
+          <button
+            className="rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-xs text-neutral-200 hover:border-blue-500"
+            onClick={() => {
+              void window.browserApi.addBookmark()
+            }}
+          >
+            Guardar pagina actual
+          </button>
+        </div>
+
+        <div className="space-y-1">
+          {state.bookmarks.length === 0 && (
+            <p className="rounded-lg border border-neutral-800 bg-neutral-850 px-3 py-8 text-center text-sm text-neutral-500">
+              No hay marcadores guardados.
+            </p>
+          )}
+          {state.bookmarks.map((entry) => (
+            <div
+              key={entry.id}
+              className="flex items-center gap-2 rounded-lg border border-neutral-800 bg-neutral-850 px-3 py-2"
+            >
+              <button
+                className="flex min-w-0 flex-1 items-center gap-2 text-left text-xs text-neutral-300"
+                onClick={() => {
+                  void window.browserApi.createTab(entry.url)
+                  onClose()
+                }}
+              >
+                <Bookmark size={13} className="shrink-0 text-blue-400" />
+                <span className="min-w-0 truncate">{entry.title || entry.url}</span>
+              </button>
+              <button
+                className="rounded-md p-1 text-neutral-500 hover:bg-neutral-700 hover:text-neutral-200"
+                onClick={() => void window.browserApi.removeBookmark(entry.id)}
+              >
+                <X size={12} />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ExtensionsPanel({
+  state,
+  onClose,
+  onInstall
+}: {
+  state: BrowserState
+  onClose: () => void
+  onInstall: (path: string) => void
+}): React.JSX.Element {
+  const [isOver, setIsOver] = useState(false)
+
+  const onDrop = (event: React.DragEvent): void => {
+    event.preventDefault()
+    setIsOver(false)
+
+    const file = event.dataTransfer.files.item(0)
+    const path = (file as File & { path?: string } | null)?.path
+    if (!path || !path.endsWith('.crx')) {
+      return
+    }
+
+    onInstall(path)
+  }
+
+  return (
+    <div className="theme-backdrop fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
+      <div
+        className="max-h-[80vh] w-[560px] overflow-y-auto rounded-2xl border border-neutral-700 bg-neutral-900 p-5 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="font-semibold text-neutral-100">Extensiones Chrome (CRX)</h2>
+          <button
+            className="rounded-md p-1 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100"
+            onClick={onClose}
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <div
+          className={`mb-4 rounded-xl border border-dashed p-8 text-center text-sm transition-colors ${
+            isOver
+              ? 'border-blue-500 bg-blue-600/15 text-blue-100'
+              : 'border-neutral-600 bg-neutral-850 text-neutral-400'
+          }`}
+          onDragOver={(event) => {
+            event.preventDefault()
+            setIsOver(true)
+          }}
+          onDragLeave={() => setIsOver(false)}
+          onDrop={onDrop}
+        >
+          Arrastra un archivo .crx aqui para instalarlo en el perfil activo.
+        </div>
+
+        <div className="space-y-1">
+          {state.extensions.length === 0 && (
+            <p className="rounded-lg border border-neutral-800 bg-neutral-850 px-3 py-6 text-center text-sm text-neutral-500">
+              No hay extensiones instaladas en este estado.
+            </p>
+          )}
+          {state.extensions.map((extension) => (
+            <div
+              key={extension.id}
+              className="flex items-center gap-2 rounded-lg border border-neutral-800 bg-neutral-850 px-3 py-2 text-xs"
+            >
+              <Puzzle size={13} className="text-neutral-400" />
+              <span className="flex-1 text-neutral-200">{extension.name}</span>
+              <span className="text-neutral-500">v{extension.version}</span>
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -462,6 +696,9 @@ function App(): React.JSX.Element {
   const [bootError, setBootError] = useState<string | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [showPalette, setShowPalette] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
+  const [showBookmarks, setShowBookmarks] = useState(false)
+  const [showExtensions, setShowExtensions] = useState(false)
   const [externalUrl, setExternalUrl] = useState<string | null>(null)
   const [toasts, setToasts] = useState<Toast[]>([])
   const urlRef = useRef<HTMLInputElement>(null)
@@ -546,25 +783,46 @@ function App(): React.JSX.Element {
   }, [setState])
 
   useEffect(() => {
-    void window.browserApi?.setContentVisible(!showSettings && !showPalette && !externalUrl)
-  }, [showSettings, showPalette, externalUrl])
+    const overlayOpen =
+      showSettings || showPalette || showHistory || showBookmarks || showExtensions || Boolean(externalUrl)
+    void window.browserApi?.setContentVisible(!overlayOpen)
+  }, [showSettings, showPalette, showHistory, showBookmarks, showExtensions, externalUrl])
 
-  const onKeyDown = useCallback((e: KeyboardEvent) => {
-    const mod = e.ctrlKey || e.metaKey
-    if (mod && e.key === 'k') {
-      e.preventDefault()
+  const runAppCommand = useCallback((command: AppCommand) => {
+    if (command === 'toggle-command-palette') {
       setShowPalette((v) => !v)
+      return
     }
-    if (mod && e.key === 't') {
-      e.preventDefault()
+
+    if (command === 'new-tab') {
       void window.browserApi.createTab()
     }
   }, [])
 
+  const onKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      const mod = e.ctrlKey || e.metaKey
+      const key = e.key.toLowerCase()
+      if (mod && key === 'k') {
+        e.preventDefault()
+        runAppCommand('toggle-command-palette')
+      }
+      if (mod && key === 't') {
+        e.preventDefault()
+        runAppCommand('new-tab')
+      }
+    },
+    [runAppCommand]
+  )
+
   useEffect(() => {
+    const offCommand = window.browserApi.onAppCommand((command) => runAppCommand(command))
     window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [onKeyDown])
+    return () => {
+      offCommand()
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [onKeyDown, runAppCommand])
 
   useEffect(() => {
     if (!state) return
@@ -577,6 +835,9 @@ function App(): React.JSX.Element {
   const activeTab = state?.tabs.find((t) => t.id === state.activeTabId) ?? null
   const pinnedTabs = state?.tabs.filter((t) => t.pinned) ?? []
   const regularTabs = state?.tabs.filter((t) => !t.pinned) ?? []
+  const activeProfile = state?.profiles.find((profile) => profile.id === state.activeProfileId) ?? null
+  const currentSpaces =
+    state?.spaces.filter((space) => space.profileId === state.activeProfileId) ?? []
 
   useEffect(() => {
     const reportContentBounds = (): void => {
@@ -654,6 +915,9 @@ function App(): React.JSX.Element {
         className="flex shrink-0 items-center gap-1 border-b border-neutral-800 bg-neutral-900 px-2"
         style={{ height: 48 }}
       >
+        <div className="mr-1 flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-700 bg-neutral-800 text-xs font-bold text-neutral-100">
+          {state.preferences.appIconGlyph || 'A'}
+        </div>
         <NavBtn
           onClick={() => void window.browserApi.goBack()}
           title="Atrás"
@@ -699,6 +963,44 @@ function App(): React.JSX.Element {
           </div>
         </form>
 
+        <select
+          className="h-8 max-w-[130px] rounded-md border border-neutral-700 bg-neutral-800 px-2 text-xs text-neutral-200"
+          value={state.activeProfileId}
+          title="Perfil activo"
+          onChange={(e) => void window.browserApi.switchProfile(e.target.value)}
+        >
+          {state.profiles.map((profile) => (
+            <option key={profile.id} value={profile.id}>
+              {profile.name}
+            </option>
+          ))}
+        </select>
+
+        <select
+          className="h-8 max-w-[130px] rounded-md border border-neutral-700 bg-neutral-800 px-2 text-xs text-neutral-200"
+          value={state.activeSpaceId}
+          title="Space activo"
+          onChange={(e) => void window.browserApi.switchSpace(e.target.value)}
+        >
+          {currentSpaces.map((space) => (
+            <option key={space.id} value={space.id}>
+              {space.name}
+            </option>
+          ))}
+        </select>
+
+        <NavBtn onClick={() => setShowHistory(true)} title="Historial" active={showHistory}>
+          <History size={15} />
+        </NavBtn>
+        <NavBtn onClick={() => setShowBookmarks(true)} title="Marcadores" active={showBookmarks}>
+          <Bookmark size={15} />
+        </NavBtn>
+        <NavBtn onClick={() => setShowExtensions(true)} title="Extensiones" active={showExtensions}>
+          <Puzzle size={15} />
+        </NavBtn>
+        <NavBtn onClick={() => void window.browserApi.addBookmark()} title="Guardar marcador">
+          <Star size={15} />
+        </NavBtn>
         <NavBtn onClick={() => void window.browserApi.createTab()} title="Nueva pestaña">
           <Plus size={15} />
         </NavBtn>
@@ -729,6 +1031,37 @@ function App(): React.JSX.Element {
             ref={sidebarRef}
             className="flex w-56 shrink-0 flex-col gap-0.5 overflow-y-auto border-r border-neutral-800 bg-neutral-900 p-2"
           >
+            <div className="mb-2 rounded-lg border border-neutral-800 bg-neutral-850 px-2 py-2">
+              <p className="flex items-center gap-1.5 text-[11px] text-neutral-300">
+                <UserRound size={12} className="text-neutral-500" />
+                {activeProfile?.name ?? 'Perfil'}
+              </p>
+              <p className="mt-1 flex items-center gap-1.5 text-[10px] text-neutral-500">
+                <FolderOpenDot size={11} />
+                {currentSpaces.find((space) => space.id === state.activeSpaceId)?.name ?? 'Space'}
+              </p>
+              <div className="mt-2 flex gap-1.5">
+                <button
+                  className="flex-1 rounded-md border border-neutral-700 px-2 py-1 text-[10px] text-neutral-300 hover:border-blue-500"
+                  onClick={() => {
+                    const name = window.prompt('Nombre del nuevo perfil')
+                    if (name) void window.browserApi.createProfile(name)
+                  }}
+                >
+                  + Perfil
+                </button>
+                <button
+                  className="flex-1 rounded-md border border-neutral-700 px-2 py-1 text-[10px] text-neutral-300 hover:border-blue-500"
+                  onClick={() => {
+                    const name = window.prompt('Nombre del nuevo space')
+                    if (name) void window.browserApi.createSpace(name)
+                  }}
+                >
+                  + Space
+                </button>
+              </div>
+            </div>
+
             {pinnedTabs.length > 0 && (
               <>
                 <p className="px-2 pb-0.5 pt-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-600">
@@ -765,6 +1098,35 @@ function App(): React.JSX.Element {
           onOpenSettings={() => {
             setShowSettings(true)
             setShowPalette(false)
+          }}
+          onOpenHistory={() => {
+            setShowHistory(true)
+            setShowPalette(false)
+          }}
+          onOpenBookmarks={() => {
+            setShowBookmarks(true)
+            setShowPalette(false)
+          }}
+          onOpenExtensions={() => {
+            setShowExtensions(true)
+            setShowPalette(false)
+          }}
+        />
+      )}
+      {showHistory && <HistoryPanel state={state} onClose={() => setShowHistory(false)} />}
+      {showBookmarks && <BookmarksPanel state={state} onClose={() => setShowBookmarks(false)} />}
+      {showExtensions && (
+        <ExtensionsPanel
+          state={state}
+          onClose={() => setShowExtensions(false)}
+          onInstall={(path) => {
+            void window.browserApi.installExtensionFromCrx(path).catch((error) => {
+              addToast({
+                type: 'error',
+                title: 'Error al instalar extension',
+                message: String(error)
+              })
+            })
           }}
         />
       )}

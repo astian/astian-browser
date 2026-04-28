@@ -7,6 +7,15 @@ describe('browser store', () => {
       state: {
         activeTabId: null,
         tabs: [],
+        profiles: [{ id: 'default', name: 'Default', createdAt: Date.now() }],
+        spaces: [
+          { id: 'default-space', profileId: 'default', name: 'General', createdAt: Date.now() }
+        ],
+        activeProfileId: 'default',
+        activeSpaceId: 'default-space',
+        history: [],
+        bookmarks: [],
+        extensions: [],
         preferences: {
           tabLayout: 'horizontal',
           sidebarVisible: true,
@@ -14,7 +23,9 @@ describe('browser store', () => {
           welcomeDismissed: false,
           theme: 'dark',
           searchEngine: 'astiango',
-          adblockEnabled: true
+          adblockEnabled: true,
+          sleepTabsEnabled: true,
+          appIconGlyph: 'A'
         }
       }
     })

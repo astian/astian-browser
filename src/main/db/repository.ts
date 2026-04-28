@@ -93,11 +93,12 @@ export function dbAddHistoryEntry(entry: HistoryEntry, profileId: string): void 
     .from(schema.history)
     .where(eq(schema.history.profileId, profileId))
     .orderBy(desc(schema.history.visitedAt))
-    .offset(MAX_HISTORY_ENTRIES)
+    .limit(MAX_HISTORY_ENTRIES + 500)
     .all()
 
-  if (rows.length > 0) {
-    for (const row of rows) {
+  const rowsToDelete = rows.slice(MAX_HISTORY_ENTRIES)
+  if (rowsToDelete.length > 0) {
+    for (const row of rowsToDelete) {
       db.delete(schema.history).where(eq(schema.history.id, row.id)).run()
     }
   }

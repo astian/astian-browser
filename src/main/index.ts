@@ -10,6 +10,7 @@ import { registerBrowserIpc } from './ipc/register-ipc'
 import { initDatabase } from './db/client'
 import { IPC_CHANNELS } from '../shared/ipc'
 import { initUpdater, updaterService } from './services/updater'
+import { registerAstianProtocol } from './protocol/astian'
 
 const RESOURCE_MEASUREMENT_ENABLED = process.env['ASTIAN_RESOURCE_MEASURE'] === '1'
 const RESOURCE_MEASUREMENT_TAB_COUNT = 3
@@ -29,53 +30,6 @@ protocol.registerSchemesAsPrivileged([
 ])
 
 // ── astian:// protocol ────────────────────────────────────────────────────
-
-function makeInternalPage(title: string, body: string): Response {
-  const html = `<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8"/>
-  <title>${title} — Astian</title>
-  <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0a0a0a;color:#e5e5e5;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem}
-    h1{font-size:1.5rem;font-weight:600;margin-bottom:.75rem;color:#f5f5f5}
-    p{color:#737373;font-size:.875rem;line-height:1.6;text-align:center}
-    .badge{display:inline-block;background:#1d4ed8;color:#bfdbfe;font-size:.75rem;font-weight:500;padding:.25rem .75rem;border-radius:9999px;margin-bottom:1.5rem}
-  </style>
-</head>
-<body>${body}</body>
-</html>`
-  return new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } })
-}
-
-function registerAstianProtocol(): void {
-  protocol.handle('astian', (request) => {
-    const url = new URL(request.url)
-    const page = url.hostname
-
-    if (page === 'newtab') {
-      return makeInternalPage(
-        'Nueva pestaña',
-        `<div class="badge">astian://newtab</div><h1>Nueva pestaña</h1><p>Bienvenido a Astian Browser.<br/>Usa la barra de direcciones para navegar.</p>`
-      )
-    }
-    if (page === 'settings') {
-      return makeInternalPage(
-        'Configuración',
-        `<div class="badge">astian://settings</div><h1>Configuración</h1><p>Usa el panel de preferencias del navegador para cambiar los ajustes.</p>`
-      )
-    }
-    if (page === 'history') {
-      return makeInternalPage(
-        'Historial',
-        `<div class="badge">astian://history</div><h1>Historial</h1><p>El historial de navegación estará disponible en una próxima versión.</p>`
-      )
-    }
-
-    return new Response('Not Found', { status: 404 })
-  })
-}
 // ── external-scheme security prompt (native dialog on main) ──────────────
 const SAFE_SCHEMES = new Set(['http', 'https', 'astian', 'file', 'about', 'data'])
 

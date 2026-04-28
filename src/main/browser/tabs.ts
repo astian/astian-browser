@@ -34,6 +34,7 @@ import {
 } from '../db/repository'
 import { getStateFilePath } from '../app/state-store'
 import { installCrxIntoSession } from '../services/extensions'
+import { registerAstianProtocolForSession } from '../protocol/astian'
 
 const DEFAULT_PROFILE_ID = 'default'
 const DEFAULT_SPACE_ID = 'default-space'
@@ -765,15 +766,19 @@ export class TabsController {
       return
     }
 
-    const entry = {
-      id: crypto.randomUUID(),
-      url: tab.url,
-      title: tab.title || tab.url,
-      visitedAt: Date.now()
+    try {
+      const entry = {
+        id: crypto.randomUUID(),
+        url: tab.url,
+        title: tab.title || tab.url,
+        visitedAt: Date.now()
+      }
+      this.history.unshift(entry)
+      this.history = this.history.slice(0, 100) // keep in-memory cache small
+      dbAddHistoryEntry(entry, this.activeProfileId)
+    } catch (error) {
+      console.error('[tabs] Failed to record history entry:', error)
     }
-    this.history.unshift(entry)
-    this.history = this.history.slice(0, 100) // keep in-memory cache small
-    dbAddHistoryEntry(entry, this.activeProfileId)
   }
 
   private detachView(managed: ManagedTab): void {
@@ -794,6 +799,7 @@ export class TabsController {
     }
 
     const profileSession = session.fromPartition(`persist:astian-profile:${resolvedProfileId}`)
+    registerAstianProtocolForSession(profileSession)
     this.profileSessions.set(resolvedProfileId, profileSession)
     return profileSession
   }

@@ -65,9 +65,12 @@ export interface BookmarkEntry {
 
 export interface InstalledExtension {
   id: string
+  profileId: string
   name: string
   version: string
   path: string
+  enabled: boolean
+  installedAt: number
 }
 
 export interface BrowserState {
@@ -113,6 +116,11 @@ export interface BrowserApi {
   addBookmark: (url?: string, title?: string) => Promise<BrowserState>
   removeBookmark: (bookmarkId: string) => Promise<BrowserState>
   installExtensionFromCrx: (filePath: string) => Promise<BrowserState>
+  enableExtension: (extensionId: string) => Promise<BrowserState>
+  disableExtension: (extensionId: string) => Promise<BrowserState>
+  uninstallExtension: (extensionId: string) => Promise<BrowserState>
+  deleteHistoryEntry: (entryId: string) => Promise<BrowserState>
+  clearHistory: () => Promise<BrowserState>
   setContentVisible: (visible: boolean) => Promise<void>
   setContentBounds: (bounds: ContentBounds) => Promise<void>
   confirmExternalScheme: (url: string) => Promise<boolean>
@@ -139,6 +147,11 @@ export const IPC_CHANNELS = {
   ADD_BOOKMARK: 'browser:add-bookmark',
   REMOVE_BOOKMARK: 'browser:remove-bookmark',
   INSTALL_EXTENSION_FROM_CRX: 'browser:install-extension-from-crx',
+  ENABLE_EXTENSION: 'browser:enable-extension',
+  DISABLE_EXTENSION: 'browser:disable-extension',
+  UNINSTALL_EXTENSION: 'browser:uninstall-extension',
+  DELETE_HISTORY_ENTRY: 'browser:delete-history-entry',
+  CLEAR_HISTORY: 'browser:clear-history',
   SET_CONTENT_VISIBLE: 'browser:set-content-visible',
   SET_CONTENT_BOUNDS: 'browser:set-content-bounds',
   STATE_CHANGED: 'browser:state-changed',

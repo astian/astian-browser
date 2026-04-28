@@ -1,4 +1,5 @@
 import { BrowserWindow, Session, WebContentsView, session } from 'electron'
+import { rm } from 'node:fs/promises'
 import { join } from 'path'
 import type {
   BookmarkEntry,
@@ -12,7 +13,26 @@ import type {
 } from '../../shared/ipc'
 import { SEARCH_ENGINES } from '../../shared/ipc'
 import { IPC_CHANNELS } from '../../shared/ipc'
-import { loadState, saveState } from '../app/state-store'
+import { loadShellState, saveShellState } from '../app/state-store'
+import {
+  dbGetProfiles,
+  dbUpsertProfile,
+  dbGetSpaces,
+  dbUpsertSpace,
+  dbGetHistory,
+  dbAddHistoryEntry,
+  dbDeleteHistoryEntry,
+  dbClearHistory,
+  dbGetBookmarks,
+  dbUpsertBookmark,
+  dbDeleteBookmark,
+  dbGetExtensions,
+  dbUpsertExtension,
+  dbSetExtensionEnabled,
+  dbDeleteExtension,
+  migrateFromStateJsonIfNeeded
+} from '../db/repository'
+import { getStateFilePath } from '../app/state-store'
 import { installCrxIntoSession } from '../services/extensions'
 
 const DEFAULT_PROFILE_ID = 'default'
@@ -22,7 +42,6 @@ const NEW_TAB_URL =
 const SHARED_PRELOAD_PATH = join(__dirname, '../../preload/index.js')
 const SLEEP_TIMEOUT_MS = 10 * 60 * 1000
 const SLEEP_CHECK_INTERVAL_MS = 60 * 1000
-const MAX_HISTORY_ENTRIES = 500
 const RESERVED_TOP_HEIGHT_HORIZONTAL = 88
 const RESERVED_TOP_HEIGHT_SIDEBAR = 48
 const RESERVED_SIDEBAR_WIDTH = 224
@@ -52,18 +71,25 @@ export class TabsController {
   constructor(window: BrowserWindow) {
     this.window = window
 
-    const persisted = loadState()
+    // One-time migration from legacy state.json
+    migrateFromStateJsonIfNeeded(getStateFilePath())
+
+    const persisted = loadShellState()
     this.preferences = persisted.preferences
-    this.profiles = persisted.profiles
-    this.spaces = persisted.spaces
     this.activeTabId = persisted.activeTabId
     this.activeProfileId = persisted.activeProfileId
     this.activeSpaceId = persisted.activeSpaceId
-    this.history = persisted.history
-    this.bookmarks = persisted.bookmarks
-    this.extensions = persisted.extensions
+
+    // Load from DB
+    this.profiles = dbGetProfiles()
+    this.spaces = dbGetSpaces()
 
     this.ensureDefaultProfileAndSpace()
+
+    // Load profile-scoped data after active profile is resolved
+    this.history = dbGetHistory(this.activeProfileId)
+    this.bookmarks = dbGetBookmarks(this.activeProfileId)
+    this.extensions = dbGetExtensions(this.activeProfileId)
 
     if (persisted.tabs.length > 0) {
       const restoredActiveId = this.resolveRestoredActiveTabId(persisted.tabs)
@@ -128,8 +154,10 @@ export class TabsController {
 
   private ensureDefaultProfileAndSpace(): void {
     if (this.profiles.length === 0) {
-      this.profiles = [{ id: DEFAULT_PROFILE_ID, name: 'Default', createdAt: Date.now() }]
+      const defaultProfile: BrowserProfile = { id: DEFAULT_PROFILE_ID, name: 'Default', createdAt: Date.now() }
+      this.profiles = [defaultProfile]
       this.activeProfileId = DEFAULT_PROFILE_ID
+      dbUpsertProfile(defaultProfile)
     }
 
     if (!this.profiles.some((profile) => profile.id === this.activeProfileId)) {
@@ -137,28 +165,30 @@ export class TabsController {
     }
 
     if (this.spaces.length === 0) {
-      this.spaces = [
-        {
-          id: DEFAULT_SPACE_ID,
-          profileId: this.activeProfileId,
-          name: 'General',
-          createdAt: Date.now()
-        }
-      ]
+      const defaultSpace: BrowserSpace = {
+        id: DEFAULT_SPACE_ID,
+        profileId: this.activeProfileId,
+        name: 'General',
+        createdAt: Date.now()
+      }
+      this.spaces = [defaultSpace]
       this.activeSpaceId = DEFAULT_SPACE_ID
+      dbUpsertSpace(defaultSpace)
       return
     }
 
     const activeProfileSpaces = this.spaces.filter((space) => space.profileId === this.activeProfileId)
     if (activeProfileSpaces.length === 0) {
       const fallbackSpaceId = crypto.randomUUID()
-      this.spaces.push({
+      const fallbackSpace: BrowserSpace = {
         id: fallbackSpaceId,
         profileId: this.activeProfileId,
         name: 'General',
         createdAt: Date.now()
-      })
+      }
+      this.spaces.push(fallbackSpace)
       this.activeSpaceId = fallbackSpaceId
+      dbUpsertSpace(fallbackSpace)
       return
     }
 
@@ -201,10 +231,14 @@ export class TabsController {
     const profileId = crypto.randomUUID()
     const now = Date.now()
     const profileName = name.trim() || `Perfil ${this.profiles.length + 1}`
-    this.profiles.push({ id: profileId, name: profileName, createdAt: now })
+    const newProfile: BrowserProfile = { id: profileId, name: profileName, createdAt: now }
+    this.profiles.push(newProfile)
+    dbUpsertProfile(newProfile)
 
     const spaceId = crypto.randomUUID()
-    this.spaces.push({ id: spaceId, profileId, name: 'General', createdAt: now })
+    const newSpace: BrowserSpace = { id: spaceId, profileId, name: 'General', createdAt: now }
+    this.spaces.push(newSpace)
+    dbUpsertSpace(newSpace)
 
     this.activeProfileId = profileId
     this.activeSpaceId = spaceId
@@ -224,11 +258,18 @@ export class TabsController {
     const profileSpaces = this.spaces.filter((space) => space.profileId === profile.id)
     if (profileSpaces.length === 0) {
       const spaceId = crypto.randomUUID()
-      this.spaces.push({ id: spaceId, profileId: profile.id, name: 'General', createdAt: Date.now() })
+      const newSpace: BrowserSpace = { id: spaceId, profileId: profile.id, name: 'General', createdAt: Date.now() }
+      this.spaces.push(newSpace)
+      dbUpsertSpace(newSpace)
       this.activeSpaceId = spaceId
     } else {
       this.activeSpaceId = profileSpaces[0]!.id
     }
+
+    // Reload history/bookmarks/extensions for new profile from DB
+    this.history = dbGetHistory(this.activeProfileId)
+    this.bookmarks = dbGetBookmarks(this.activeProfileId)
+    this.extensions = dbGetExtensions(this.activeProfileId)
 
     const scopedTabs = this.getTabsInActiveScope()
     if (scopedTabs.length === 0) {
@@ -244,12 +285,14 @@ export class TabsController {
 
   createSpace(name: string): BrowserState {
     const spaceId = crypto.randomUUID()
-    this.spaces.push({
+    const newSpace: BrowserSpace = {
       id: spaceId,
       profileId: this.activeProfileId,
       name: name.trim() || `Space ${this.spaces.filter((s) => s.profileId === this.activeProfileId).length + 1}`,
       createdAt: Date.now()
-    })
+    }
+    this.spaces.push(newSpace)
+    dbUpsertSpace(newSpace)
     this.activeSpaceId = spaceId
     this.activeTabId = null
     this.createTab(NEW_TAB_URL, false, undefined, false, this.activeProfileId, this.activeSpaceId)
@@ -446,14 +489,17 @@ export class TabsController {
     const existing = this.bookmarks.find((bookmark) => bookmark.url === bookmarkUrl)
     if (existing) {
       this.bookmarks = this.bookmarks.filter((bookmark) => bookmark.id !== existing.id)
+      dbDeleteBookmark(existing.id)
     }
 
-    this.bookmarks.unshift({
+    const newBookmark: BookmarkEntry = {
       id: crypto.randomUUID(),
       url: bookmarkUrl,
       title: title ?? active?.state.title ?? bookmarkUrl,
       createdAt: Date.now()
-    })
+    }
+    this.bookmarks.unshift(newBookmark)
+    dbUpsertBookmark(newBookmark, this.activeProfileId)
 
     this.emit()
     return this.getState()
@@ -461,6 +507,7 @@ export class TabsController {
 
   removeBookmark(bookmarkId: string): BrowserState {
     this.bookmarks = this.bookmarks.filter((bookmark) => bookmark.id !== bookmarkId)
+    dbDeleteBookmark(bookmarkId)
     this.emit()
     return this.getState()
   }
@@ -476,17 +523,81 @@ export class TabsController {
       .find((extension) => !beforeIds.has(extension.id))
 
     if (newExtension) {
+      const ext: InstalledExtension = {
+        id: newExtension.id,
+        profileId: this.activeProfileId,
+        name: newExtension.name,
+        version: newExtension.version,
+        path: newExtension.path,
+        enabled: true,
+        installedAt: Date.now()
+      }
       this.extensions = [
         ...this.extensions.filter((item) => item.id !== newExtension.id),
-        {
-          id: newExtension.id,
-          name: newExtension.name,
-          version: newExtension.version,
-          path: newExtension.path
-        }
+        ext
       ]
+      dbUpsertExtension(ext)
     }
 
+    this.emit()
+    return this.getState()
+  }
+
+  async enableExtension(extensionId: string): Promise<BrowserState> {
+    const ext = this.extensions.find((e) => e.id === extensionId)
+    if (!ext) return this.getState()
+
+    const targetSession = this.getProfileSession(this.activeProfileId)
+    await targetSession.loadExtension(ext.path, { allowFileAccess: true })
+
+    ext.enabled = true
+    dbSetExtensionEnabled(extensionId, true)
+    this.emit()
+    return this.getState()
+  }
+
+  disableExtension(extensionId: string): BrowserState {
+    const ext = this.extensions.find((e) => e.id === extensionId)
+    if (!ext) return this.getState()
+
+    const targetSession = this.getProfileSession(this.activeProfileId)
+    targetSession.removeExtension(extensionId)
+
+    ext.enabled = false
+    dbSetExtensionEnabled(extensionId, false)
+    this.emit()
+    return this.getState()
+  }
+
+  async uninstallExtension(extensionId: string): Promise<BrowserState> {
+    const ext = this.extensions.find((e) => e.id === extensionId)
+    if (!ext) return this.getState()
+
+    const targetSession = this.getProfileSession(this.activeProfileId)
+    targetSession.removeExtension(extensionId)
+
+    try {
+      await rm(ext.path, { recursive: true, force: true })
+    } catch {
+      // Best-effort delete
+    }
+
+    this.extensions = this.extensions.filter((e) => e.id !== extensionId)
+    dbDeleteExtension(extensionId)
+    this.emit()
+    return this.getState()
+  }
+
+  deleteHistoryEntry(entryId: string): BrowserState {
+    this.history = this.history.filter((h) => h.id !== entryId)
+    dbDeleteHistoryEntry(entryId)
+    this.emit()
+    return this.getState()
+  }
+
+  clearHistory(): BrowserState {
+    this.history = []
+    dbClearHistory(this.activeProfileId)
     this.emit()
     return this.getState()
   }
@@ -654,14 +765,15 @@ export class TabsController {
       return
     }
 
-    this.history.unshift({
+    const entry = {
       id: crypto.randomUUID(),
       url: tab.url,
       title: tab.title || tab.url,
       visitedAt: Date.now()
-    })
-
-    this.history = this.history.slice(0, MAX_HISTORY_ENTRIES)
+    }
+    this.history.unshift(entry)
+    this.history = this.history.slice(0, 100) // keep in-memory cache small
+    dbAddHistoryEntry(entry, this.activeProfileId)
   }
 
   private detachView(managed: ManagedTab): void {
@@ -747,9 +859,12 @@ export class TabsController {
 
   private emit(): void {
     const state = this.getState()
-    saveState({
-      ...state,
-      tabs: Array.from(this.tabs.values()).map((managed) => managed.state)
+    saveShellState({
+      tabs: Array.from(this.tabs.values()).map((managed) => managed.state),
+      activeTabId: this.activeTabId,
+      activeProfileId: this.activeProfileId,
+      activeSpaceId: this.activeSpaceId,
+      preferences: this.preferences
     })
     for (const listener of this.listeners) {
       listener(state)

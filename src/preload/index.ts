@@ -21,6 +21,11 @@ const browserApi: BrowserApi = {
   removeBookmark: (bookmarkId) => ipcRenderer.invoke(IPC_CHANNELS.REMOVE_BOOKMARK, bookmarkId),
   installExtensionFromCrx: (filePath) =>
     ipcRenderer.invoke(IPC_CHANNELS.INSTALL_EXTENSION_FROM_CRX, filePath),
+  enableExtension: (extensionId) => ipcRenderer.invoke(IPC_CHANNELS.ENABLE_EXTENSION, extensionId),
+  disableExtension: (extensionId) => ipcRenderer.invoke(IPC_CHANNELS.DISABLE_EXTENSION, extensionId),
+  uninstallExtension: (extensionId) => ipcRenderer.invoke(IPC_CHANNELS.UNINSTALL_EXTENSION, extensionId),
+  deleteHistoryEntry: (entryId) => ipcRenderer.invoke(IPC_CHANNELS.DELETE_HISTORY_ENTRY, entryId),
+  clearHistory: () => ipcRenderer.invoke(IPC_CHANNELS.CLEAR_HISTORY),
   setContentVisible: (visible) => ipcRenderer.invoke(IPC_CHANNELS.SET_CONTENT_VISIBLE, visible),
   setContentBounds: (bounds) => ipcRenderer.invoke(IPC_CHANNELS.SET_CONTENT_BOUNDS, bounds),
   confirmExternalScheme: (url) => ipcRenderer.invoke(IPC_CHANNELS.CONFIRM_EXTERNAL_SCHEME, url),

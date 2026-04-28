@@ -38,6 +38,19 @@ export function registerBrowserIpc(
   ipcMain.handle(IPC_CHANNELS.INSTALL_EXTENSION_FROM_CRX, (_event, filePath: string) =>
     tabs.installExtensionFromCrx(filePath)
   )
+  ipcMain.handle(IPC_CHANNELS.ENABLE_EXTENSION, (_event, extensionId: string) =>
+    tabs.enableExtension(extensionId)
+  )
+  ipcMain.handle(IPC_CHANNELS.DISABLE_EXTENSION, (_event, extensionId: string) =>
+    tabs.disableExtension(extensionId)
+  )
+  ipcMain.handle(IPC_CHANNELS.UNINSTALL_EXTENSION, (_event, extensionId: string) =>
+    tabs.uninstallExtension(extensionId)
+  )
+  ipcMain.handle(IPC_CHANNELS.DELETE_HISTORY_ENTRY, (_event, entryId: string) =>
+    tabs.deleteHistoryEntry(entryId)
+  )
+  ipcMain.handle(IPC_CHANNELS.CLEAR_HISTORY, () => tabs.clearHistory())
   ipcMain.handle(IPC_CHANNELS.SET_CONTENT_VISIBLE, (_event, visible: boolean) =>
     tabs.setContentVisible(visible)
   )

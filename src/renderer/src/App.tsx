@@ -26,6 +26,8 @@ import {
 import type { AppCommand, BrowserState, BrowserTab, SearchEngine, TabLayout, Theme } from '@shared/ipc'
 import { SEARCH_ENGINES } from '@shared/ipc'
 import { CommandPalette } from '@renderer/components/browser/CommandPalette'
+import { HistoryView } from '@renderer/components/browser/HistoryView'
+import { BookmarksView } from '@renderer/components/browser/BookmarksView'
 import { ToastContainer, Toast } from '@renderer/components/Toast'
 import { useBrowserStore } from '@renderer/store/browser-store'
 import { useUpdater, quitAndInstallUpdate } from '@renderer/lib/useUpdater'
@@ -494,124 +496,6 @@ function SettingsPanel({
   )
 }
 
-function HistoryPanel({
-  state,
-  onClose
-}: {
-  state: BrowserState
-  onClose: () => void
-}): React.JSX.Element {
-  return (
-    <div className="theme-backdrop fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
-      <div
-        className="max-h-[80vh] w-[640px] overflow-y-auto rounded-2xl border border-neutral-700 bg-neutral-900 p-5 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-semibold text-neutral-100">Historial</h2>
-          <button
-            className="rounded-md p-1 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100"
-            onClick={onClose}
-          >
-            <X size={16} />
-          </button>
-        </div>
-
-        <div className="space-y-1">
-          {state.history.length === 0 && (
-            <p className="rounded-lg border border-neutral-800 bg-neutral-850 px-3 py-8 text-center text-sm text-neutral-500">
-              Todavia no hay historial de navegacion.
-            </p>
-          )}
-          {state.history.map((entry) => (
-            <button
-              key={entry.id}
-              className="flex w-full items-center gap-3 rounded-lg border border-transparent px-3 py-2 text-left text-xs text-neutral-300 transition-colors hover:border-neutral-700 hover:bg-neutral-800"
-              onClick={() => {
-                void window.browserApi.createTab(entry.url)
-                onClose()
-              }}
-            >
-              <History size={13} className="shrink-0 text-neutral-500" />
-              <span className="min-w-0 flex-1 truncate">{entry.title || entry.url}</span>
-              <span className="max-w-[200px] truncate text-neutral-500">{hostname(entry.url)}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function BookmarksPanel({
-  state,
-  onClose
-}: {
-  state: BrowserState
-  onClose: () => void
-}): React.JSX.Element {
-  return (
-    <div className="theme-backdrop fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
-      <div
-        className="max-h-[80vh] w-[640px] overflow-y-auto rounded-2xl border border-neutral-700 bg-neutral-900 p-5 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-semibold text-neutral-100">Marcadores</h2>
-          <button
-            className="rounded-md p-1 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100"
-            onClick={onClose}
-          >
-            <X size={16} />
-          </button>
-        </div>
-
-        <div className="mb-3 flex gap-2">
-          <button
-            className="rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-xs text-neutral-200 hover:border-blue-500"
-            onClick={() => {
-              void window.browserApi.addBookmark()
-            }}
-          >
-            Guardar pagina actual
-          </button>
-        </div>
-
-        <div className="space-y-1">
-          {state.bookmarks.length === 0 && (
-            <p className="rounded-lg border border-neutral-800 bg-neutral-850 px-3 py-8 text-center text-sm text-neutral-500">
-              No hay marcadores guardados.
-            </p>
-          )}
-          {state.bookmarks.map((entry) => (
-            <div
-              key={entry.id}
-              className="flex items-center gap-2 rounded-lg border border-neutral-800 bg-neutral-850 px-3 py-2"
-            >
-              <button
-                className="flex min-w-0 flex-1 items-center gap-2 text-left text-xs text-neutral-300"
-                onClick={() => {
-                  void window.browserApi.createTab(entry.url)
-                  onClose()
-                }}
-              >
-                <Bookmark size={13} className="shrink-0 text-blue-400" />
-                <span className="min-w-0 truncate">{entry.title || entry.url}</span>
-              </button>
-              <button
-                className="rounded-md p-1 text-neutral-500 hover:bg-neutral-700 hover:text-neutral-200"
-                onClick={() => void window.browserApi.removeBookmark(entry.id)}
-              >
-                <X size={12} />
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
-
 function ExtensionsPanel({
   state,
   onClose,
@@ -671,7 +555,7 @@ function ExtensionsPanel({
         <div className="space-y-1">
           {state.extensions.length === 0 && (
             <p className="rounded-lg border border-neutral-800 bg-neutral-850 px-3 py-6 text-center text-sm text-neutral-500">
-              No hay extensiones instaladas en este estado.
+              No hay extensiones instaladas en este perfil.
             </p>
           )}
           {state.extensions.map((extension) => (
@@ -679,9 +563,36 @@ function ExtensionsPanel({
               key={extension.id}
               className="flex items-center gap-2 rounded-lg border border-neutral-800 bg-neutral-850 px-3 py-2 text-xs"
             >
-              <Puzzle size={13} className="text-neutral-400" />
-              <span className="flex-1 text-neutral-200">{extension.name}</span>
+              <Puzzle size={13} className={extension.enabled ? 'text-blue-400' : 'text-neutral-600'} />
+              <span className={`flex-1 ${extension.enabled ? 'text-neutral-200' : 'text-neutral-500'}`}>
+                {extension.name}
+              </span>
               <span className="text-neutral-500">v{extension.version}</span>
+              <button
+                className={`rounded-md px-2 py-0.5 text-[10px] transition-colors ${
+                  extension.enabled
+                    ? 'bg-neutral-700 text-neutral-300 hover:bg-neutral-600'
+                    : 'bg-blue-600/20 text-blue-300 hover:bg-blue-600/40'
+                }`}
+                onClick={() => {
+                  if (extension.enabled) {
+                    void window.browserApi.disableExtension(extension.id)
+                  } else {
+                    void window.browserApi.enableExtension(extension.id)
+                  }
+                }}
+              >
+                {extension.enabled ? 'Desactivar' : 'Activar'}
+              </button>
+              <button
+                className="rounded-md p-1 text-neutral-500 hover:bg-red-900/30 hover:text-red-400"
+                title="Desinstalar"
+                onClick={() => {
+                  void window.browserApi.uninstallExtension(extension.id)
+                }}
+              >
+                <X size={12} />
+              </button>
             </div>
           ))}
         </div>
@@ -1113,8 +1024,8 @@ function App(): React.JSX.Element {
           }}
         />
       )}
-      {showHistory && <HistoryPanel state={state} onClose={() => setShowHistory(false)} />}
-      {showBookmarks && <BookmarksPanel state={state} onClose={() => setShowBookmarks(false)} />}
+      {showHistory && <HistoryView state={state} onClose={() => setShowHistory(false)} />}
+      {showBookmarks && <BookmarksView state={state} onClose={() => setShowBookmarks(false)} />}
       {showExtensions && (
         <ExtensionsPanel
           state={state}
